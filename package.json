@@ -1,0 +1,34 @@
+{
+  "name": "price-history-tracker",
+  "version": "1.0.0",
+  "description": "Chrome extension to track price history on Amazon, eBay, and AliExpress",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.js production",
+    "dev": "node esbuild.config.js development",
+    "watch": "node esbuild.config.js watch",
+    "lint": "eslint src --ext .ts --fix"
+  },
+  "keywords": [
+    "chrome-extension",
+    "price-tracker",
+    "amazon",
+    "ebay",
+    "aliexpress"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/node": "^24.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "linkedom": "^0.18.12"
+  }
+}
