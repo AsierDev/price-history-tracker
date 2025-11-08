@@ -1,0 +1,70 @@
+{
+  "manifest_version": 3,
+  "name": "Price History Tracker",
+  "version": "1.0.0",
+  "description": "Track price history on Amazon, eBay, and AliExpress. Get notified when prices drop.",
+  "icons": {
+    "16": "popup/icons/icon16.svg",
+    "48": "popup/icons/icon48.svg",
+    "128": "popup/icons/icon128.svg"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.amazon.com/*",
+    "https://www.amazon.es/*",
+    "https://www.amazon.co.uk/*",
+    "https://www.amazon.de/*",
+    "https://www.amazon.fr/*",
+    "https://www.amazon.it/*",
+    "https://www.ebay.com/*",
+    "https://www.ebay.es/*",
+    "https://www.ebay.co.uk/*",
+    "https://www.ebay.de/*",
+    "https://www.ebay.fr/*",
+    "https://www.ebay.it/*",
+    "https://www.aliexpress.com/*",
+    "https://www.aliexpress.us/*",
+    "https://es.aliexpress.com/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.com/*",
+        "https://www.amazon.es/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.fr/*",
+        "https://www.amazon.it/*",
+        "https://www.ebay.com/*",
+        "https://www.ebay.es/*",
+        "https://www.ebay.co.uk/*",
+        "https://www.ebay.de/*",
+        "https://www.ebay.fr/*",
+        "https://www.ebay.it/*",
+        "https://www.aliexpress.com/*",
+        "https://www.aliexpress.us/*",
+        "https://es.aliexpress.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "popup/icons/icon16.svg",
+      "48": "popup/icons/icon48.svg",
+      "128": "popup/icons/icon128.svg"
+    },
+    "default_title": "Price History Tracker"
+  }
+}

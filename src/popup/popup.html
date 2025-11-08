@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Price History Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>💰 Price Tracker</h1>
+      <div class="header-actions">
+        <button id="refreshBtn" class="icon-btn" title="Refresh prices">
+          <span>🔄</span>
+        </button>
+        <button id="darkModeToggle" class="icon-btn" title="Toggle dark mode">
+          <span>🌙</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Products</span>
+        <span class="stat-value" id="totalProducts">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Total Savings</span>
+        <span class="stat-value" id="totalSavings">0€</span>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Search products..."
+        autocomplete="off"
+      >
+    </div>
+
+    <!-- Products List -->
+    <div id="productsList" class="products-list">
+      <!-- Products will be rendered here -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <div class="empty-icon">📦</div>
+      <h3>No products tracked yet</h3>
+      <p>Visit Amazon, eBay, or AliExpress and click "Track Price" to start monitoring prices.</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading products...</p>
+    </div>
+  </div>
+
+  <!-- Price History Modal -->
+  <div id="historyModal" class="modal" style="display: none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Historial de Precios</h2>
+        <button id="closeModalBtn" class="modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Stats Section -->
+        <div class="history-stats">
+          <div class="history-stat-item">
+            <span class="history-stat-label">Precio Actual</span>
+            <span class="history-stat-value" id="statCurrentPrice">-</span>
+          </div>
+          <div class="history-stat-item">
+            <span class="history-stat-label">Precio Inicial</span>
+            <span class="history-stat-value" id="statInitialPrice">-</span>
+          </div>
+          <div class="history-stat-item">
+            <span class="history-stat-label">Precio Mínimo</span>
+            <span class="history-stat-value success" id="statLowestPrice">-</span>
+          </div>
+          <div class="history-stat-item">
+            <span class="history-stat-label">Precio Máximo</span>
+            <span class="history-stat-value danger" id="statHighestPrice">-</span>
+          </div>
+        </div>
+        <!-- Chart Container -->
+        <div class="chart-container">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
