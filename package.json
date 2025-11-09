@@ -7,7 +7,11 @@
     "build": "node esbuild.config.js production",
     "dev": "node esbuild.config.js development",
     "watch": "node esbuild.config.js watch",
-    "lint": "eslint src --ext .ts --fix"
+    "lint": "eslint src --ext .ts --fix",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "chrome-extension",
@@ -23,10 +27,13 @@
     "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/ui": "^4.0.8",
     "dotenv": "^17.2.3",
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.26.0",
     "eslint": "^8.57.0",
-    "typescript": "^5.3.3"
+    "jsdom": "^27.1.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.8"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
