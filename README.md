@@ -8,6 +8,8 @@ Chrome extension para rastrear historial de precios en Amazon, eBay y AliExpress
 
 ## 🚀 Quick Start
 
+> **Requisitos:** Node.js 20.x y npm 9+
+
 ```bash
 # Instalar dependencias
 npm install
@@ -60,6 +62,7 @@ interface PriceAdapter {
 ### Rate Limiting
 
 Backoff exponencial por dominio:
+
 - 1er fallo: 1 minuto
 - 2do fallo: 5 minutos
 - 3er fallo: 30 minutos
@@ -116,6 +119,7 @@ npm run test:coverage
 **Target achieved**: >60% coverage enforced in CI
 
 **Test Suites:**
+
 - ✅ **Unit Tests**: Adapters (Amazon, eBay, AliExpress)
 - ✅ **Unit Tests**: Core logic (Storage, PriceChecker, RateLimiter)
 - ✅ **Integration Tests**: End-to-end product flows
@@ -140,6 +144,7 @@ npm run test:coverage
 ### Quality Assurance
 
 **Code Audit Results:** ✅ **PASSED**
+
 - **Linting:** 0 errors, 0 warnings
 - **Type Checking:** Strict TypeScript compilation
 - **Security:** No vulnerabilities detected
@@ -172,6 +177,7 @@ npm run ci
 ```
 
 This executes the same checks as GitHub Actions:
+
 - Linting (source + tests)
 - TypeScript type checking
 - Unit tests execution
