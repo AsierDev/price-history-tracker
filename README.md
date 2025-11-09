@@ -163,6 +163,20 @@ npm run watch
 npm run lint
 ```
 
+### CI Checks (Pre-commit)
+
+Run all pipeline checks locally before pushing:
+
+```bash
+npm run ci
+```
+
+This executes the same checks as GitHub Actions:
+- Linting (source + tests)
+- TypeScript type checking
+- Unit tests execution
+- Build verification
+
 ## 📝 Variables de Entorno
 
 Copiar `.env.example` a `.env`:
