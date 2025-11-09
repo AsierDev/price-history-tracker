@@ -3,24 +3,23 @@
  */
 
 export function parsePrice(text: string): number {
-  // Handle European format (comma as decimal separator)
+  // Remove currency symbols and spaces
   let cleaned = text
     .replace(/[€$£¥]/g, '')
     .replace(/\s/g, '');
 
-  // Check if it uses comma as decimal separator (European format)
-  if (cleaned.includes(',') && !cleaned.includes('.')) {
-    // Single comma likely means European decimal (e.g., "55,67")
-    const parts = cleaned.split(',');
-    if (parts.length === 2 && parts[1].length <= 2) {
-      cleaned = parts[0] + '.' + parts[1];
-    }
-  } else if (cleaned.includes(',') && cleaned.includes('.')) {
-    // Both comma and dot - remove commas that are likely thousands separators
-    cleaned = cleaned.replace(/,/g, '');
+  // Determine format: European uses comma as decimal separator
+  // European format: "1.234,56" (comma is decimal, dots are thousands)
+  // US format: "1,234.56" (dot is decimal, commas are thousands)
+  const lastCommaIndex = cleaned.lastIndexOf(',');
+  const lastDotIndex = cleaned.lastIndexOf('.');
+
+  if (lastCommaIndex > lastDotIndex && lastCommaIndex > cleaned.length - 4) {
+    // European format: comma is likely decimal separator (close to end)
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
   } else {
-    // US format - replace comma with dot for decimal
-    cleaned = cleaned.replace(/,/g, '.');
+    // US format: remove commas (thousands separators), keep dots as decimals
+    cleaned = cleaned.replace(/,/g, '');
   }
 
   const match = cleaned.match(/\d+\.?\d*/);

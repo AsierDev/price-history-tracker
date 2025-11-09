@@ -63,21 +63,29 @@ function renderProducts() {
     .join('');
 
   // Attach event listeners to buttons
+  // First, remove any existing listeners to prevent memory leaks
   filteredProducts.forEach(product => {
     const historyBtn = document.getElementById(`history-${product.id}`);
     const viewBtn = document.getElementById(`view-${product.id}`);
     const removeBtn = document.getElementById(`remove-${product.id}`);
 
     if (historyBtn) {
-      historyBtn.addEventListener('click', () => handleShowHistory(product));
+      // Clone and replace to remove existing listeners
+      const newHistoryBtn = historyBtn.cloneNode(true) as HTMLButtonElement;
+      historyBtn.parentNode?.replaceChild(newHistoryBtn, historyBtn);
+      newHistoryBtn.addEventListener('click', () => handleShowHistory(product));
     }
 
     if (viewBtn) {
-      viewBtn.addEventListener('click', () => handleViewProduct(product));
+      const newViewBtn = viewBtn.cloneNode(true) as HTMLButtonElement;
+      viewBtn.parentNode?.replaceChild(newViewBtn, viewBtn);
+      newViewBtn.addEventListener('click', () => handleViewProduct(product));
     }
 
     if (removeBtn) {
-      removeBtn.addEventListener('click', () => handleRemoveProduct(product.id));
+      const newRemoveBtn = removeBtn.cloneNode(true) as HTMLButtonElement;
+      removeBtn.parentNode?.replaceChild(newRemoveBtn, removeBtn);
+      newRemoveBtn.addEventListener('click', () => handleRemoveProduct(product.id));
     }
   });
 }

@@ -113,9 +113,9 @@ export class AmazonAdapter implements PriceAdapter {
       const element = doc.querySelector(selector);
       if (element?.textContent) {
         const text = element.textContent.trim();
-        const price = this.parsePrice(text);
+        const price = parsePrice(text);
         if (price > 0) {
-          const currency = this.detectCurrency(text);
+          const currency = detectCurrency(text);
           return { price, currency };
         }
       }
@@ -148,13 +148,5 @@ export class AmazonAdapter implements PriceAdapter {
 
     const text = availabilityElement.textContent || '';
     return !isOutOfStock(text);
-  }
-
-  private parsePrice(text: string): number {
-    return parsePrice(text);
-  }
-
-  private detectCurrency(text: string): string {
-    return detectCurrency(text);
   }
 }
