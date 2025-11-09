@@ -167,6 +167,48 @@ body {
   border-radius: 8px;
   object-fit: cover;
   background: var(--bg-hover);
+  transition: opacity 0.3s ease;
+}
+
+/* Image loading states */
+.product-image.loading {
+  background: var(--bg-hover);
+  position: relative;
+  overflow: hidden;
+}
+
+.product-image.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.product-image.error {
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 20px;
+}
+
+.product-image.fade-in {
+  animation: fadeInImage 0.3s ease-in;
+}
+
+@keyframes fadeInImage {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .product-info {
