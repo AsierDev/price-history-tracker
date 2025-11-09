@@ -82,7 +82,7 @@ jobs:
 
       - name: Verify main files
         run: |
-          REQUIRED_FILES=("manifest.json" "popup.html" "service-worker.js" "content-script.js")
+          REQUIRED_FILES=("manifest.json" "popup/popup.html" "service-worker.js" "content-script.js")
           for file in "${REQUIRED_FILES[@]}"; do
             if [ ! -f "dist/$file" ]; then
               echo "❌ $file not found in dist/"
