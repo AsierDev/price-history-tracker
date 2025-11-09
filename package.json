@@ -7,7 +7,7 @@
     "build": "node esbuild.config.js production",
     "dev": "node esbuild.config.js development",
     "watch": "node esbuild.config.js watch",
-    "lint": "eslint src --ext .ts --fix && eslint tests --ext .ts --config .eslintrc.test.js --fix",
+    "lint": "eslint src --ext .ts --fix && eslint tests --ext .ts --config .eslintrc.test.cjs --fix",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
