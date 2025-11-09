@@ -27,12 +27,15 @@ npm run build
 - ✅ **Rate Limiting**: Backoff exponencial para evitar baneos
 - ✅ **Dark Mode**: Tema claro/oscuro (gráficos adaptativos)
 - ✅ **URLs de Afiliado**: Estructura lista para monetización
-- ✅ **Sync**: Datos sincronizados entre dispositivos
+- ✅ **Backend Firebase**: Historial compartido entre usuarios (anónimo)
+- ✅ **Storage Optimizado**: chrome.storage.local con keys divididas (sin límites de quota)
 
 ## 📖 Documentación
 
 - [**Setup & Testing Guide**](docs/README.md) - Instalación, uso y testing
 - [**Adapter Development Guide**](docs/README-ADAPTERS.md) - Cómo agregar nuevas plataformas
+- [**Firebase Setup Guide**](docs/FIREBASE_SETUP.md) - Configuración del backend Firebase
+- [**Backend Integration Changelog**](docs/CHANGELOG_BACKEND_INTEGRATION.md) - Detalles técnicos de la integración
 
 ## 🏗️ Arquitectura
 
@@ -66,7 +69,8 @@ Los chequeos se ejecutan serialmente (1 producto/segundo). Hooks preparados para
 
 - **TypeScript** (strict mode)
 - **esbuild** (bundling)
-- **Chrome APIs** (Storage Sync, Alarms, Notifications)
+- **Chrome APIs** (Storage Local, Alarms, Notifications)
+- **Firebase** (Firestore + Anonymous Auth)
 - **linkedom** (parser HTML en service worker)
 - **Chart.js** (visualización del historial de precios)
 
@@ -76,6 +80,7 @@ Los chequeos se ejecutan serialmente (1 producto/segundo). Hooks preparados para
 src/
 ├── core/              # Lógica de negocio
 ├── adapters/          # Patrón adapter para plataformas
+├── backend/           # Firebase integration (Firestore + Auth)
 ├── popup/             # UI del popup
 ├── utils/             # Utilidades
 ├── service-worker.ts  # Orquestación background
@@ -124,19 +129,30 @@ npm run lint
 Copiar `.env.example` a `.env`:
 
 ```env
+# Affiliate IDs
 AFFILIATE_AMAZON_TAG=tu-tag-amazon
 AFFILIATE_ADMITAD_ID=tu-id-admitad
 AFFILIATE_EBAY_ID=tu-id-ebay
+
+# Firebase (opcional - ver docs/FIREBASE_SETUP.md)
+FIREBASE_API_KEY=your_api_key
+FIREBASE_PROJECT_ID=your_project_id
+# ... más variables Firebase
 ```
+
+**Nota**: La extensión funciona sin Firebase (modo local-only), pero el historial compartido requiere configuración Firebase.
 
 ## 🎯 Roadmap
 
 - [ ] Paralelización de chequeos con control de concurrencia
-- [ ] Backend sync para productos ilimitados
+- [x] Backend sync para historial compartido ✅
 - [x] Gráficos de historial de precios ✅
+- [x] Storage optimizado (chrome.storage.local) ✅
 - [ ] Umbrales de notificación personalizados por producto
 - [ ] Export/import de productos trackeados
 - [ ] Badge con contador de ahorros
+- [ ] Cloud Functions para validación y rate limiting
+- [ ] Sincronización offline-first
 
 ## 📄 Licencia
 
