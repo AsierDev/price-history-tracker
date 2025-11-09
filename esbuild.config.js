@@ -1,5 +1,6 @@
 /* eslint-env node */
 
+import 'dotenv/config';
 import esbuild from 'esbuild';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
@@ -13,6 +14,13 @@ const envReplacements = {
   'process.env.AFFILIATE_AMAZON_TAG': JSON.stringify(process.env.AFFILIATE_AMAZON_TAG ?? ''),
   'process.env.AFFILIATE_EBAY_ID': JSON.stringify(process.env.AFFILIATE_EBAY_ID ?? ''),
   'process.env.AFFILIATE_ADMITAD_ID': JSON.stringify(process.env.AFFILIATE_ADMITAD_ID ?? ''),
+  // Firebase configuration
+  'process.env.FIREBASE_API_KEY': JSON.stringify(process.env.FIREBASE_API_KEY ?? ''),
+  'process.env.FIREBASE_AUTH_DOMAIN': JSON.stringify(process.env.FIREBASE_AUTH_DOMAIN ?? ''),
+  'process.env.FIREBASE_PROJECT_ID': JSON.stringify(process.env.FIREBASE_PROJECT_ID ?? ''),
+  'process.env.FIREBASE_STORAGE_BUCKET': JSON.stringify(process.env.FIREBASE_STORAGE_BUCKET ?? ''),
+  'process.env.FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(process.env.FIREBASE_MESSAGING_SENDER_ID ?? ''),
+  'process.env.FIREBASE_APP_ID': JSON.stringify(process.env.FIREBASE_APP_ID ?? ''),
 };
 
 const buildOptions = {
