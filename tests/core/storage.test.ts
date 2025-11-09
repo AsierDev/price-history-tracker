@@ -3,9 +3,9 @@ import { StorageManager } from '@core/storage';
 import { createMockProduct } from '@helpers/mocks';
 
 const mockChromeStorage = {
-  get: vi.fn<(keys: string[] | string | null) => Promise<Record<string, unknown>>>(),
-  set: vi.fn<(data: Record<string, unknown>) => Promise<void>>(),
-  remove: vi.fn<(keys: string | string[]) => Promise<void>>(),
+  get: vi.fn<(_keys: string[] | string | null) => Promise<Record<string, unknown>>>(),
+  set: vi.fn<(_data: Record<string, unknown>) => Promise<void>>(),
+  remove: vi.fn<(_keys: string | string[]) => Promise<void>>(),
   clear: vi.fn<() => Promise<void>>(),
 };
 
