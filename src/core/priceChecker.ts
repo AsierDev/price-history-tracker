@@ -9,7 +9,7 @@ import { NotificationManager } from './notificationManager';
 import { getAdapterForUrl } from '@adapters/registry';
 import { getCurrentTimestamp } from '@utils/dateUtils';
 import { logger } from '@utils/logger';
-import { LIMITS } from '../shared/constants';
+import { updatePriceInBackend } from '../backend/backend';
 
 export class PriceChecker {
   /**
@@ -135,26 +135,24 @@ export class PriceChecker {
       const newPrice = data.price;
       const priceChanged = Math.abs(newPrice - product.currentPrice) > 0.01;
 
+      // Update backend with new price (async, non-blocking)
+      updatePriceInBackend({
+        url: product.url,
+        price: newPrice,
+        currency: product.currency,
+        title: product.title,
+        platform: product.adapter,
+      }).catch(error => {
+        logger.warn('Failed to update backend during check', error);
+      });
+
       if (priceChanged) {
         await this.handlePriceChange(product, newPrice);
       }
 
-      // Always add entry to price history (even if price unchanged)
-      const newHistoryEntry = {
-        price: newPrice,
-        timestamp: getCurrentTimestamp(),
-        checkedAt: getCurrentTimestamp(),
-      };
-
-      const updatedHistory = [
-        ...product.priceHistory,
-        newHistoryEntry,
-      ].slice(-LIMITS.MAX_HISTORY_ENTRIES); // keep max entries
-
+      // Update local metadata (no priceHistory stored locally)
       await StorageManager.updateProduct(product.id, {
         lastCheckedAt: getCurrentTimestamp(),
-        priceHistory: updatedHistory,
-        // Only update currentPrice when it changed significantly
         ...(priceChanged ? { currentPrice: newPrice } : {}),
       });
 

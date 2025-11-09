@@ -1,12 +1,26 @@
 /**
- * Chrome Storage Sync wrapper for persistent data
+ * Chrome Storage Local wrapper for persistent data
+ * Uses individual keys per product to avoid quota limits
+ * Structure:
+ * - config: ExtensionConfig
+ * - anonymousUserId: string
+ * - lastCheckTime: number
+ * - product_${id}: TrackedProduct (one key per product)
+ * - rateLimit_${domain}: RateLimitBucket (one key per domain)
  */
 
 import type { StorageData, TrackedProduct, ExtensionConfig, RateLimitBucket } from './types';
 import { logger } from '../utils/logger';
 import { PERCENTAGES, LIMITS } from '../shared/constants';
 
-const STORAGE_KEY = 'priceTrackerData';
+// Storage key prefixes
+const KEYS = {
+  CONFIG: 'config',
+  ANONYMOUS_USER_ID: 'anonymousUserId',
+  LAST_CHECK_TIME: 'lastCheckTime',
+  PRODUCT_PREFIX: 'product_',
+  RATE_LIMIT_PREFIX: 'rateLimit_',
+} as const;
 
 const DEFAULT_CONFIG: ExtensionConfig = {
   checkIntervalHours: 6,
@@ -29,24 +43,25 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 
 export class StorageManager {
   /**
-   * Get all data from storage
+   * Get all data from storage (legacy compatibility method)
+   * @deprecated Use specific getters instead (getProducts, getConfig, etc.)
    */
   static async getData(): Promise<StorageData> {
     try {
-      const result = await chrome.storage.sync.get(STORAGE_KEY);
-      const data = result[STORAGE_KEY] as StorageData | undefined;
-      
-      if (!data) {
-        logger.info('No storage data found, initializing with defaults');
-        await this.setData(DEFAULT_STORAGE_DATA);
-        return DEFAULT_STORAGE_DATA;
-      }
+      const [products, config, lastCheckTime, anonymousUserId, rateLimitBuckets] = await Promise.all([
+        this.getProducts(),
+        this.getConfig(),
+        this.getLastCheckTime(),
+        this.getAnonymousUserId(),
+        this.getAllRateLimitBuckets(),
+      ]);
 
-      // Merge with defaults to handle missing fields
       return {
-        ...DEFAULT_STORAGE_DATA,
-        ...data,
-        config: { ...DEFAULT_CONFIG, ...data.config },
+        products,
+        rateLimitBuckets,
+        config,
+        lastCheckTime,
+        anonymousUserId,
       };
     } catch (error) {
       logger.error('Failed to get storage data', error);
@@ -55,11 +70,32 @@ export class StorageManager {
   }
 
   /**
-   * Save all data to storage
+   * Save all data to storage (legacy compatibility method)
+   * @deprecated Use specific setters instead
    */
   static async setData(data: StorageData): Promise<void> {
     try {
-      await chrome.storage.sync.set({ [STORAGE_KEY]: data });
+      // Save config and metadata
+      await chrome.storage.local.set({
+        [KEYS.CONFIG]: data.config,
+        [KEYS.LAST_CHECK_TIME]: data.lastCheckTime,
+        [KEYS.ANONYMOUS_USER_ID]: data.anonymousUserId,
+      });
+
+      // Save products individually
+      const productUpdates: Record<string, TrackedProduct> = {};
+      for (const product of data.products) {
+        productUpdates[`${KEYS.PRODUCT_PREFIX}${product.id}`] = product;
+      }
+      await chrome.storage.local.set(productUpdates);
+
+      // Save rate limit buckets individually
+      const rateLimitUpdates: Record<string, RateLimitBucket> = {};
+      for (const [domain, bucket] of Object.entries(data.rateLimitBuckets)) {
+        rateLimitUpdates[`${KEYS.RATE_LIMIT_PREFIX}${domain}`] = bucket;
+      }
+      await chrome.storage.local.set(rateLimitUpdates);
+
       logger.debug('Storage data saved successfully');
     } catch (error) {
       logger.error('Failed to save storage data', error);
@@ -71,159 +107,283 @@ export class StorageManager {
    * Get all tracked products
    */
   static async getProducts(): Promise<TrackedProduct[]> {
-    const data = await this.getData();
-    return data.products;
+    try {
+      const allData = await chrome.storage.local.get(null);
+      const products: TrackedProduct[] = [];
+
+      for (const [key, value] of Object.entries(allData)) {
+        if (key.startsWith(KEYS.PRODUCT_PREFIX)) {
+          products.push(value as TrackedProduct);
+        }
+      }
+
+      return products;
+    } catch (error) {
+      logger.error('Failed to get products', error);
+      return [];
+    }
   }
 
   /**
    * Add a new product
    */
   static async addProduct(product: TrackedProduct): Promise<void> {
-    const data = await this.getData();
-    
-    if (data.products.length >= data.config.maxProductsTracked) {
-      throw new Error(`Maximum ${data.config.maxProductsTracked} products tracked`);
-    }
+    try {
+      const products = await this.getProducts();
+      const config = await this.getConfig();
 
-    // Check for duplicates
-    const exists = data.products.some(p => p.url === product.url);
-    if (exists) {
-      throw new Error('Product already tracked');
-    }
+      if (products.length >= config.maxProductsTracked) {
+        throw new Error(`Maximum ${config.maxProductsTracked} products tracked`);
+      }
 
-    data.products.push(product);
-    await this.setData(data);
-    logger.info('Product added', { productId: product.id, title: product.title });
+      // Check for duplicates
+      const exists = products.some(p => p.url === product.url);
+      if (exists) {
+        throw new Error('Product already tracked');
+      }
+
+      // Save product with individual key (no priceHistory, no imageUrl)
+      await chrome.storage.local.set({
+        [`${KEYS.PRODUCT_PREFIX}${product.id}`]: product,
+      });
+
+      logger.info('Product added', { productId: product.id, title: product.title });
+    } catch (error) {
+      logger.error('Failed to add product', error);
+      throw error;
+    }
   }
 
   /**
    * Update an existing product
    */
   static async updateProduct(productId: string, updates: Partial<TrackedProduct>): Promise<void> {
-    const data = await this.getData();
-    const index = data.products.findIndex(p => p.id === productId);
+    try {
+      const key = `${KEYS.PRODUCT_PREFIX}${productId}`;
+      const result = await chrome.storage.local.get(key);
+      const product = result[key] as TrackedProduct | undefined;
 
-    if (index === -1) {
-      throw new Error('Product not found');
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      const updatedProduct = { ...product, ...updates };
+      await chrome.storage.local.set({ [key]: updatedProduct });
+
+      logger.debug('Product updated', { productId });
+    } catch (error) {
+      logger.error('Failed to update product', error);
+      throw error;
     }
-
-    // If updating price history, trim it to prevent quota issues
-    if (updates.priceHistory) {
-      updates.priceHistory = updates.priceHistory.slice(-LIMITS.MAX_HISTORY_ENTRIES);
-    }
-
-    data.products[index] = { ...data.products[index], ...updates };
-    await this.setData(data);
-    logger.debug('Product updated', { productId });
   }
 
   /**
    * Remove a product
    */
   static async removeProduct(productId: string): Promise<void> {
-    const data = await this.getData();
-    data.products = data.products.filter(p => p.id !== productId);
-    await this.setData(data);
-    logger.info('Product removed', { productId });
+    try {
+      const key = `${KEYS.PRODUCT_PREFIX}${productId}`;
+      await chrome.storage.local.remove(key);
+      logger.info('Product removed', { productId });
+    } catch (error) {
+      logger.error('Failed to remove product', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all rate limit buckets
+   */
+  static async getAllRateLimitBuckets(): Promise<Record<string, RateLimitBucket>> {
+    try {
+      const allData = await chrome.storage.local.get(null);
+      const buckets: Record<string, RateLimitBucket> = {};
+
+      for (const [key, value] of Object.entries(allData)) {
+        if (key.startsWith(KEYS.RATE_LIMIT_PREFIX)) {
+          const domain = key.replace(KEYS.RATE_LIMIT_PREFIX, '');
+          buckets[domain] = value as RateLimitBucket;
+        }
+      }
+
+      return buckets;
+    } catch (error) {
+      logger.error('Failed to get rate limit buckets', error);
+      return {};
+    }
   }
 
   /**
    * Get rate limit bucket for a domain
    */
   static async getRateLimitBucket(domain: string): Promise<RateLimitBucket | undefined> {
-    const data = await this.getData();
-    return data.rateLimitBuckets[domain];
+    try {
+      const key = `${KEYS.RATE_LIMIT_PREFIX}${domain}`;
+      const result = await chrome.storage.local.get(key);
+      return result[key] as RateLimitBucket | undefined;
+    } catch (error) {
+      logger.error('Failed to get rate limit bucket', error);
+      return undefined;
+    }
   }
 
   /**
    * Update rate limit bucket
    */
   static async updateRateLimitBucket(bucket: RateLimitBucket): Promise<void> {
-    const data = await this.getData();
-    data.rateLimitBuckets[bucket.domain] = bucket;
-    await this.setData(data);
-    logger.debug('Rate limit bucket updated', { domain: bucket.domain });
+    try {
+      const key = `${KEYS.RATE_LIMIT_PREFIX}${bucket.domain}`;
+      await chrome.storage.local.set({ [key]: bucket });
+      logger.debug('Rate limit bucket updated', { domain: bucket.domain });
+    } catch (error) {
+      logger.error('Failed to update rate limit bucket', error);
+      throw error;
+    }
   }
 
   /**
    * Clear rate limit for a domain
    */
   static async clearRateLimitBucket(domain: string): Promise<void> {
-    const data = await this.getData();
-    if (data.rateLimitBuckets[domain]) {
-      delete data.rateLimitBuckets[domain];
-      await this.setData(data);
+    try {
+      const key = `${KEYS.RATE_LIMIT_PREFIX}${domain}`;
+      await chrome.storage.local.remove(key);
+      logger.debug('Rate limit bucket cleared', { domain });
+    } catch (error) {
+      logger.error('Failed to clear rate limit bucket', error);
     }
-    logger.debug('Rate limit bucket cleared', { domain });
   }
 
   /**
    * Clear all rate limit buckets
    */
   static async clearAllRateLimitBuckets(): Promise<void> {
-    const data = await this.getData();
-    data.rateLimitBuckets = {};
-    await this.setData(data);
-    logger.debug('All rate limit buckets cleared');
+    try {
+      const allData = await chrome.storage.local.get(null);
+      const keysToRemove: string[] = [];
+
+      for (const key of Object.keys(allData)) {
+        if (key.startsWith(KEYS.RATE_LIMIT_PREFIX)) {
+          keysToRemove.push(key);
+        }
+      }
+
+      if (keysToRemove.length > 0) {
+        await chrome.storage.local.remove(keysToRemove);
+      }
+
+      logger.debug('All rate limit buckets cleared');
+    } catch (error) {
+      logger.error('Failed to clear all rate limit buckets', error);
+    }
   }
 
   /**
    * Get extension configuration
    */
   static async getConfig(): Promise<ExtensionConfig> {
-    const data = await this.getData();
-    return data.config;
+    try {
+      const result = await chrome.storage.local.get(KEYS.CONFIG);
+      const config = result[KEYS.CONFIG] as ExtensionConfig | undefined;
+
+      if (!config) {
+        // Initialize with defaults
+        await chrome.storage.local.set({ [KEYS.CONFIG]: DEFAULT_CONFIG });
+        return DEFAULT_CONFIG;
+      }
+
+      // Merge with defaults to handle missing fields
+      return { ...DEFAULT_CONFIG, ...config };
+    } catch (error) {
+      logger.error('Failed to get config', error);
+      return DEFAULT_CONFIG;
+    }
   }
 
   /**
    * Update extension configuration
    */
   static async updateConfig(updates: Partial<ExtensionConfig>): Promise<void> {
-    const data = await this.getData();
-    data.config = { ...data.config, ...updates };
-    await this.setData(data);
-    logger.info('Config updated');
+    try {
+      const config = await this.getConfig();
+      const updatedConfig = { ...config, ...updates };
+      await chrome.storage.local.set({ [KEYS.CONFIG]: updatedConfig });
+      logger.info('Config updated');
+    } catch (error) {
+      logger.error('Failed to update config', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get last check time
+   */
+  static async getLastCheckTime(): Promise<number> {
+    try {
+      const result = await chrome.storage.local.get(KEYS.LAST_CHECK_TIME);
+      return result[KEYS.LAST_CHECK_TIME] || 0;
+    } catch (error) {
+      logger.error('Failed to get last check time', error);
+      return 0;
+    }
   }
 
   /**
    * Update last check time
    */
   static async updateLastCheckTime(timestamp: number): Promise<void> {
-    const data = await this.getData();
-    data.lastCheckTime = timestamp;
-    await this.setData(data);
+    try {
+      await chrome.storage.local.set({ [KEYS.LAST_CHECK_TIME]: timestamp });
+    } catch (error) {
+      logger.error('Failed to update last check time', error);
+    }
   }
 
   /**
-   * Trim all products' price histories to prevent quota issues
+   * Get anonymous user ID (Firebase Auth)
+   */
+  static async getAnonymousUserId(): Promise<string | undefined> {
+    try {
+      const result = await chrome.storage.local.get(KEYS.ANONYMOUS_USER_ID);
+      return result[KEYS.ANONYMOUS_USER_ID] as string | undefined;
+    } catch (error) {
+      logger.error('Failed to get anonymous user ID', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Set anonymous user ID (Firebase Auth)
+   */
+  static async setAnonymousUserId(userId: string): Promise<void> {
+    try {
+      await chrome.storage.local.set({ [KEYS.ANONYMOUS_USER_ID]: userId });
+      logger.info('Anonymous user ID saved', { userId });
+    } catch (error) {
+      logger.error('Failed to set anonymous user ID', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Trim all products' price histories (deprecated - history moved to backend)
+   * @deprecated Price history is now stored in Firebase, not locally
    */
   static async trimAllPriceHistories(): Promise<void> {
-    const data = await this.getData();
-    let trimmedCount = 0;
-
-    for (const product of data.products) {
-      if (product.priceHistory.length > LIMITS.MAX_HISTORY_ENTRIES) {
-        product.priceHistory = product.priceHistory.slice(-LIMITS.MAX_HISTORY_ENTRIES);
-        trimmedCount++;
-        logger.debug('Trimmed price history', {
-          productId: product.id,
-          originalLength: product.priceHistory.length,
-          newLength: LIMITS.MAX_HISTORY_ENTRIES,
-        });
-      }
-    }
-
-    if (trimmedCount > 0) {
-      await this.setData(data);
-      logger.info('Trimmed price histories', { productsTrimmed: trimmedCount });
-    }
+    logger.info('trimAllPriceHistories is deprecated - price history moved to backend');
+    // No-op: price history is no longer stored locally
   }
 
   /**
    * Clear all data (for testing/reset)
    */
   static async clearAll(): Promise<void> {
-    await chrome.storage.sync.remove(STORAGE_KEY);
-    logger.warn('All storage data cleared');
+    try {
+      await chrome.storage.local.clear();
+      logger.warn('All storage data cleared');
+    } catch (error) {
+      logger.error('Failed to clear all storage', error);
+      throw error;
+    }
   }
 }

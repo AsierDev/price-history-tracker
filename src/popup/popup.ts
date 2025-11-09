@@ -2,11 +2,11 @@
  * Popup UI logic
  */
 
-import type { TrackedProduct } from '../core/types';
+import type { TrackedProduct, PriceDataPoint } from '../core/types';
 import { StorageManager } from '../core/storage';
 import { formatTimestamp } from '../utils/dateUtils';
 import { Chart, registerables } from 'chart.js';
-import { LIMITS } from '../shared/constants';
+import { getProductHistory, getProductImageUrl } from '../backend/backend';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -91,7 +91,7 @@ function createProductCard(product: TrackedProduct): string {
 
   return `
     <div class="product-card">
-      ${product.imageUrl ? `<img src="${product.imageUrl}" alt="${product.title}" class="product-image">` : '<div class="product-image"></div>'}
+      <div class="product-image loading" id="img-${product.id}"></div>
       <div class="product-info">
         <div class="product-title" title="${product.title}">${product.title}</div>
         <div class="product-prices">
@@ -104,7 +104,7 @@ function createProductCard(product: TrackedProduct): string {
         </div>
       </div>
       <div class="product-actions">
-        ${product.priceHistory.length >= 2 ? `<button id="history-${product.id}" class="btn btn-chart" title="Ver historial">📊 Historial</button>` : ''}
+        <button id="history-${product.id}" class="btn btn-chart" title="Ver historial">📊 Historial</button>
         <button id="view-${product.id}" class="btn btn-primary">View</button>
         <button id="remove-${product.id}" class="btn btn-danger">Remove</button>
       </div>
@@ -220,16 +220,106 @@ function setupEventListeners() {
   refreshBtn.addEventListener('click', handleRefresh);
   darkModeToggle.addEventListener('click', handleDarkModeToggle);
 
-  // Listen for storage changes
+  // Listen for storage changes (now using local storage)
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.priceTrackerData) {
-      loadProducts();
+    if (area === 'local') {
+      // Reload if any product key changed
+      const hasProductChange = Object.keys(changes).some(key => key.startsWith('product_'));
+      if (hasProductChange) {
+        loadProducts();
+      }
     }
+  });
+
+  // Load images asynchronously after render
+  loadProductImages();
+}
+
+// Load product images from backend asynchronously with improved performance
+async function loadProductImages() {
+  const maxConcurrent = 3; // Limit concurrent image loads
+  const imagePromises: Promise<void>[] = [];
+
+  for (let i = 0; i < filteredProducts.length; i += maxConcurrent) {
+    const batch = filteredProducts.slice(i, i + maxConcurrent);
+
+    // Process batch in parallel
+    const batchPromises = batch.map(async (product) => {
+      const imgContainer = document.getElementById(`img-${product.id}`);
+      if (!imgContainer) return;
+
+      try {
+        // Create image element
+        const img = document.createElement('img');
+        img.className = 'product-image';
+
+        // Set up loading promise with timeout
+        const imageLoadPromise = new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Image load timeout'));
+          }, 8000); // 8 second timeout
+
+          img.onload = () => {
+            clearTimeout(timeout);
+            img.classList.add('fade-in');
+            resolve();
+          };
+
+          img.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Image failed to load'));
+          };
+        });
+
+        // Try to get image URL from backend
+        const imageUrl = await Promise.race([
+          getProductImageUrl(product.url),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('Backend timeout')), 5000)
+          )
+        ]);
+
+        if (imageUrl) {
+          img.src = imageUrl;
+          img.alt = product.title;
+
+          // Wait for image to load
+          await imageLoadPromise;
+
+          // Replace placeholder with loaded image
+          imgContainer.replaceWith(img);
+        } else {
+          throw new Error('No image URL available');
+        }
+
+      } catch (error) {
+        console.debug(`Failed to load image for product ${product.id}:`, error);
+
+        // Show error fallback
+        const errorImg = document.createElement('div');
+        errorImg.className = 'product-image error';
+        errorImg.innerHTML = '📦'; // Package emoji as fallback
+        errorImg.title = 'Image not available';
+
+        imgContainer.replaceWith(errorImg);
+      }
+    });
+
+    imagePromises.push(...batchPromises);
+  }
+
+  // Wait for all images to finish loading (but don't block UI)
+  Promise.allSettled(imagePromises).then((results) => {
+    const loaded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    console.debug(`Image loading complete: ${loaded} loaded, ${failed} failed`);
+  }).catch(() => {
+    // Ignore errors in Promise.allSettled
   });
 }
 
 // Price History Modal Functions
-function handleShowHistory(product: TrackedProduct) {
+async function handleShowHistory(product: TrackedProduct) {
   const modal = document.getElementById('historyModal') as HTMLDivElement;
   const modalTitle = document.getElementById('modalTitle') as HTMLHeadingElement;
   const closeBtn = document.getElementById('closeModalBtn') as HTMLButtonElement;
@@ -237,14 +327,23 @@ function handleShowHistory(product: TrackedProduct) {
   // Set title
   modalTitle.textContent = product.title;
   
-  // Update stats
-  updateHistoryStats(product);
-  
-  // Render chart
-  renderPriceChart(product);
-  
-  // Show modal
+  // Show modal with loading state
   modal.style.display = 'flex';
+  
+  try {
+    // Fetch history from backend
+    const priceHistory = await getProductHistory(product.url);
+    
+    // Update stats
+    updateHistoryStats(product, priceHistory);
+    
+    // Render chart
+    renderPriceChart(product, priceHistory);
+  } catch (error) {
+    console.error('Failed to load price history', error);
+    // Show error or fallback
+    modalTitle.textContent = `${product.title} (Error loading history)`;
+  }
   
   // Setup close handlers
   closeBtn.onclick = closeHistoryModal;
@@ -278,7 +377,7 @@ function handleEscapeKey(e: KeyboardEvent) {
   }
 }
 
-function updateHistoryStats(product: TrackedProduct) {
+function updateHistoryStats(product: TrackedProduct, priceHistory: PriceDataPoint[]) {
   const currentPriceEl = document.getElementById('statCurrentPrice') as HTMLSpanElement;
   const initialPriceEl = document.getElementById('statInitialPrice') as HTMLSpanElement;
   const lowestPriceEl = document.getElementById('statLowestPrice') as HTMLSpanElement;
@@ -292,9 +391,9 @@ function updateHistoryStats(product: TrackedProduct) {
   // Initial price
   initialPriceEl.textContent = `${product.initialPrice.toFixed(2)}${currency}`;
   
-  // Calculate min/max from history
-  if (product.priceHistory.length > 0) {
-    const prices = product.priceHistory.map(h => h.price);
+  // Calculate min/max from backend history
+  if (priceHistory.length > 0) {
+    const prices = priceHistory.map(h => h.price);
     const lowest = Math.min(...prices);
     const highest = Math.max(...prices);
     
@@ -306,7 +405,7 @@ function updateHistoryStats(product: TrackedProduct) {
   }
 }
 
-function renderPriceChart(product: TrackedProduct) {
+function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[]) {
   const canvas = document.getElementById('priceChart') as HTMLCanvasElement;
   const ctx = canvas.getContext('2d');
   
@@ -317,10 +416,17 @@ function renderPriceChart(product: TrackedProduct) {
     currentChart.destroy();
   }
   
-  // Prepare data - limit to last MAX_HISTORY_ENTRIES entries if there are too many
-  let historyData = [...product.priceHistory];
-  if (historyData.length > LIMITS.MAX_HISTORY_ENTRIES) {
-    historyData = historyData.slice(-LIMITS.MAX_HISTORY_ENTRIES);
+  // Use backend history (already limited to 500 entries)
+  let historyData = [...priceHistory];
+  
+  // Fallback if no history available
+  if (historyData.length === 0) {
+    historyData = [{
+      price: product.currentPrice,
+      currency: product.currency,
+      timestamp: product.addedAt,
+      source: 'user' as const,
+    }];
   }
   
   // Sort by timestamp

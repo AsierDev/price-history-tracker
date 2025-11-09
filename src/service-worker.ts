@@ -11,6 +11,7 @@ import { getAdapterForUrl } from './adapters/registry';
 import { getCurrentTimestamp } from './utils/dateUtils';
 import { normalizeUrl } from './utils/urlUtils';
 import { logger } from './utils/logger';
+import { addPriceToBackend } from './backend/backend';
 
 const ALARM_NAME = 'checkPrices';
 const CHECK_INTERVAL_MINUTES = 360; // 6 hours
@@ -185,27 +186,37 @@ async function handleTrackProduct(
       return { success: false, error: data.error || 'Product not available' };
     }
 
-    // Create product
+    // Send to backend first (get shared history)
+    const backendResponse = await addPriceToBackend({
+      url: normalizedUrl,
+      price: data.price,
+      currency: data.currency,
+      title: data.title,
+      platform: adapter.name,
+      imageUrl: data.imageUrl,
+    });
+
+    if (!backendResponse.success) {
+      logger.warn('Backend sync failed, continuing with local-only mode', {
+        error: backendResponse.error,
+      });
+    }
+
+    // Create product metadata (lightweight, no imageUrl or priceHistory)
     const product: TrackedProduct = {
       id: generateId(),
       title: data.title,
       url: normalizedUrl,
-      imageUrl: data.imageUrl,
       currentPrice: data.price,
       initialPrice: data.price,
       currency: data.currency,
       adapter: adapter.name,
       addedAt: getCurrentTimestamp(),
       lastCheckedAt: getCurrentTimestamp(),
-      priceHistory: [{
-        price: data.price,
-        timestamp: getCurrentTimestamp(),
-        checkedAt: getCurrentTimestamp(),
-      }],
       isActive: true,
     };
 
-    // Save to storage
+    // Save metadata to local storage
     await StorageManager.addProduct(product);
 
     logger.info('Product tracked successfully', {
