@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./",
+    "baseUrl": "./",
+    "types": ["vitest/globals", "chrome", "node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["tests/**/*", "src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

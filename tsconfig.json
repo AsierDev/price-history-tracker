@@ -13,16 +13,16 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
       "@adapters/*": ["adapters/*"],
-      "@utils/*": ["utils/*"]
+      "@utils/*": ["utils/*"],
+      "@backend/*": ["backend/*"]
     },
     "types": ["chrome", "node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "tests/**/*"]
 }
