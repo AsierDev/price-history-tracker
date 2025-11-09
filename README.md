@@ -90,25 +90,39 @@ src/
 
 ## 🧪 Testing
 
-Ver [Testing Checklist](docs/README.md#testing-checklist) para guía completa.
-
-### Quick Test
+### Run Tests
 
 ```bash
-# 1. Build
-npm run build
+# Run all tests
+npm run test:run
 
-# 2. Cargar en Chrome
-# chrome://extensions → Load unpacked → dist/
+# Run tests with UI
+npm run test:ui
 
-# 3. Visitar producto Amazon
-# https://amazon.com/dp/...
-
-# 4. Click "Track Price"
-
-# 5. Verificar en popup
-# Click icono extensión
+# Run tests with coverage
+npm run test:coverage
 ```
+
+### Test Coverage
+
+Current coverage: ~12% (utilities)  
+Target coverage: 80%+ (planned expansion)
+
+**Test Infrastructure:**
+- ✅ Vitest testing framework
+- ✅ Chrome API mocks for extension testing
+- ✅ Automated test execution in CI
+
+### Quality Assurance
+
+**Code Audit Results:** ✅ **PASSED**
+- **Linting:** 0 errors, 0 warnings
+- **Type Checking:** Strict TypeScript compilation
+- **Security:** No vulnerabilities detected
+- **Performance:** Bundle sizes optimized
+- **Memory:** No leaks detected
+
+See [Complete Audit Report](docs/AUDIT_REPORT.md) for detailed findings.
 
 ## 🔧 Desarrollo
 
