@@ -12,6 +12,8 @@ import { getCurrentTimestamp } from './utils/dateUtils';
 import { normalizeUrl } from './utils/urlUtils';
 import { logger } from './utils/logger';
 import { addPriceToBackend } from './backend/backend';
+import { parseGenericPrice } from './utils/priceParser';
+import { extractMetadata } from './utils/metadataExtractor';
 
 const ALARM_NAME = 'checkPrices';
 const CHECK_INTERVAL_MINUTES = 360; // 6 hours
@@ -90,6 +92,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         .then(result => sendResponse(result))
         .catch(error => {
           logger.error('Failed to track product', error);
+          sendResponse({ success: false, error: error.message });
+        });
+      return true; // Keep channel open for async response
+
+    case 'trackProductManual':
+      handleTrackProductManual(message.url, message.priceElement, message.metadata)
+        .then(result => sendResponse(result))
+        .catch(error => {
+          logger.error('Failed to track product manually', error);
           sendResponse({ success: false, error: error.message });
         });
       return true; // Keep channel open for async response
@@ -227,6 +238,141 @@ async function handleTrackProduct(
     return { success: true };
   } catch (error) {
     logger.error('Failed to track product', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Handle manual track product request (with custom selector)
+ */
+async function handleTrackProductManual(
+  url: string,
+  priceElement: { selector: string; text: string },
+  metadata?: { title: string; imageUrl?: string; storeName: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    logger.info('Tracking product manually', { url, selector: priceElement.selector });
+
+    // Normalize URL
+    const normalizedUrl = normalizeUrl(url);
+
+    // Parse price from selected text
+    const parsedPrice = parseGenericPrice(priceElement.text);
+    if (!parsedPrice) {
+      return {
+        success: false,
+        error: 'Could not parse price from selected element. Please try selecting a different element.',
+      };
+    }
+
+    logger.debug('Price parsed from manual selection', {
+      price: parsedPrice.price,
+      currency: parsedPrice.currency,
+      rawText: parsedPrice.rawText,
+    });
+
+    // Get generic adapter
+    const adapter = getAdapterForUrl(normalizedUrl);
+    if (!adapter) {
+      return { success: false, error: 'Failed to get adapter' };
+    }
+
+    // Use metadata from content script if provided, otherwise use defaults
+    let pageTitle = 'Product from Website';
+    let imageUrl: string | undefined;
+    let storeName = 'Unknown Store';
+
+    if (metadata) {
+      // Metadata extracted in content script (preferred method)
+      pageTitle = metadata.title;
+      imageUrl = metadata.imageUrl;
+      storeName = metadata.storeName;
+
+      logger.debug('Using metadata from content script', {
+        title: pageTitle,
+        hasImage: !!imageUrl,
+        storeName,
+      });
+    } else {
+      // Fallback: try to fetch and extract (may fail due to CORS)
+      logger.warn('No metadata provided from content script, using fallback');
+      try {
+        const response = await fetch(normalizedUrl, {
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+
+        if (response.ok) {
+          const html = await response.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+
+          // Extract all metadata using smart extractor
+          const extractedMetadata = extractMetadata(doc, normalizedUrl);
+          pageTitle = extractedMetadata.title;
+          imageUrl = extractedMetadata.imageUrl;
+          storeName = extractedMetadata.storeName;
+
+          logger.debug('Metadata extracted via fetch fallback', {
+            title: pageTitle,
+            hasImage: !!imageUrl,
+            storeName,
+          });
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch page for metadata extraction', { error });
+        // Continue with generic values
+      }
+    }
+
+    // Send to backend (shared history)
+    const backendResponse = await addPriceToBackend({
+      url: normalizedUrl,
+      price: parsedPrice.price,
+      currency: parsedPrice.currency,
+      title: pageTitle,
+      platform: 'generic',
+      imageUrl,
+    });
+
+    if (!backendResponse.success) {
+      logger.warn('Backend sync failed, continuing with local-only mode', {
+        error: backendResponse.error,
+      });
+    }
+
+    // Create product with custom selector and store name
+    const product: TrackedProduct = {
+      id: generateId(),
+      title: pageTitle,
+      url: normalizedUrl,
+      currentPrice: parsedPrice.price,
+      initialPrice: parsedPrice.price,
+      currency: parsedPrice.currency,
+      adapter: 'generic',
+      customSelector: priceElement.selector, // Store custom selector for future checks
+      storeName, // Store the store name for display in popup
+      addedAt: getCurrentTimestamp(),
+      lastCheckedAt: getCurrentTimestamp(),
+      isActive: true,
+    };
+
+    // Save to local storage
+    await StorageManager.addProduct(product);
+
+    logger.info('Product tracked successfully (manual)', {
+      productId: product.id,
+      title: product.title,
+      selector: priceElement.selector,
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to track product manually', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
