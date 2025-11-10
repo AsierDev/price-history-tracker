@@ -9,10 +9,11 @@ import { AliExpressAdapter } from './implementations/aliexpress.adapter';
 import { TradeTrackerAdapter } from './implementations/tradetracker.adapter';
 import { BelboonAdapter } from './implementations/belboon.adapter';
 import { AwinAdapter } from './implementations/awin.adapter';
+import { genericAdapter } from './implementations/generic.adapter';
 import { logger } from '../utils/logger';
 
-// Registry of all adapters
-const adapters: PriceAdapter[] = [
+// Registry of specific adapters (priority order)
+const specificAdapters: PriceAdapter[] = [
   new AmazonAdapter(),
   new EbayAdapter(),
   new AliExpressAdapter(),
@@ -21,13 +22,18 @@ const adapters: PriceAdapter[] = [
   new AwinAdapter(),
 ];
 
+// All adapters including generic fallback
+const adapters: PriceAdapter[] = [...specificAdapters, genericAdapter];
+
 /**
  * Get the appropriate adapter for a given URL
+ * Tries specific adapters first, then falls back to generic adapter
  */
-export function getAdapterForUrl(url: string): PriceAdapter | null {
-  for (const adapter of adapters) {
+export function getAdapterForUrl(url: string): PriceAdapter {
+  // Try specific adapters first
+  for (const adapter of specificAdapters) {
     if (adapter.enabled && adapter.canHandle(url)) {
-      logger.debug('Adapter found for URL', {
+      logger.debug('Specific adapter found for URL', {
         adapter: adapter.name,
         url,
       });
@@ -35,8 +41,9 @@ export function getAdapterForUrl(url: string): PriceAdapter | null {
     }
   }
 
-  logger.warn('No adapter found for URL', { url });
-  return null;
+  // Fallback to generic adapter
+  logger.debug('Using generic adapter as fallback', { url });
+  return genericAdapter;
 }
 
 /**
@@ -54,8 +61,21 @@ export function getAllAdapters(): PriceAdapter[] {
 }
 
 /**
- * Check if a URL is supported by any adapter
+ * Check if a URL is supported by any specific adapter (not generic)
  */
 export function isUrlSupported(url: string): boolean {
-  return adapters.some(adapter => adapter.enabled && adapter.canHandle(url));
+  return specificAdapters.some(adapter => adapter.enabled && adapter.canHandle(url));
+}
+
+/**
+ * Check if a URL requires manual price selection (uses generic adapter)
+ * Returns true only if NO specific adapter is found AND generic adapter is needed
+ */
+export function requiresManualSelection(url: string): boolean {
+  // Check if there's a specific adapter for this URL
+  const hasSpecificAdapter = specificAdapters.some(adapter => adapter.enabled && adapter.canHandle(url));
+  
+  // Manual selection is needed only if there's NO specific adapter
+  // (meaning we'll use the generic adapter)
+  return !hasSpecificAdapter;
 }

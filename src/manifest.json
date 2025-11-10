@@ -15,21 +15,8 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://www.amazon.com/*",
-    "https://www.amazon.es/*",
-    "https://www.amazon.co.uk/*",
-    "https://www.amazon.de/*",
-    "https://www.amazon.fr/*",
-    "https://www.amazon.it/*",
-    "https://www.ebay.com/*",
-    "https://www.ebay.es/*",
-    "https://www.ebay.co.uk/*",
-    "https://www.ebay.de/*",
-    "https://www.ebay.fr/*",
-    "https://www.ebay.it/*",
-    "https://www.aliexpress.com/*",
-    "https://www.aliexpress.us/*",
-    "https://es.aliexpress.com/*"
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "service-worker.js",
@@ -38,24 +25,12 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.amazon.com/*",
-        "https://www.amazon.es/*",
-        "https://www.amazon.co.uk/*",
-        "https://www.amazon.de/*",
-        "https://www.amazon.fr/*",
-        "https://www.amazon.it/*",
-        "https://www.ebay.com/*",
-        "https://www.ebay.es/*",
-        "https://www.ebay.co.uk/*",
-        "https://www.ebay.de/*",
-        "https://www.ebay.fr/*",
-        "https://www.ebay.it/*",
-        "https://www.aliexpress.com/*",
-        "https://www.aliexpress.us/*",
-        "https://es.aliexpress.com/*"
+        "https://*/*",
+        "http://*/*"
       ],
       "js": ["content-script.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "action": {

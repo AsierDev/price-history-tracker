@@ -4,14 +4,26 @@
 
 import type { ExtractedProductData } from './core/types';
 import { logger } from './utils/logger';
-import { getAdapterForUrl, isUrlSupported } from './adapters/registry';
+import { getAdapterForUrl, isUrlSupported, requiresManualSelection } from './adapters/registry';
+import { PricePicker } from './content-script/pricePicker';
+import { isLikelyEcommerceSite } from './utils/ecommerceDetector';
+import { extractMetadata } from './utils/metadataExtractor';
 
 // Types for messages sent from content script
 type ContentScriptMessage =
   | { action: 'ping' }
-  | { action: 'trackProduct'; url: string; productData: ExtractedProductData };
+  | { action: 'trackProduct'; url: string; productData: ExtractedProductData }
+  | {
+      action: 'trackProductManual';
+      url: string;
+      priceElement: { selector: string; text: string };
+      metadata: { title: string; imageUrl?: string; storeName: string };
+    };
 
 type MessageResponse = { success: boolean; error?: string; pong?: boolean };
+
+// Global price picker instance
+const pricePicker = new PricePicker();
 
 /**
  * Send message to service worker with retry logic for "Extension context invalidated"
@@ -58,9 +70,30 @@ async function sendMessageWithRetry(message: ContentScriptMessage, maxRetries = 
 // Check if we're on a supported product page
 const currentUrl = window.location.href;
 const isSupported = isUrlSupported(currentUrl);
+const needsManualSelection = requiresManualSelection(currentUrl);
 
-if (isSupported) {
-  logger.info('Supported product page detected', { url: currentUrl });
+// For sites without specific adapter, check if it's likely an e-commerce site
+let shouldShowButton = isSupported;
+
+if (!isSupported && needsManualSelection) {
+  // Run e-commerce detection
+  const isEcommerce = isLikelyEcommerceSite(document, currentUrl);
+  shouldShowButton = isEcommerce;
+  
+  logger.info('E-commerce detection result', {
+    url: currentUrl,
+    isEcommerce,
+    willShowButton: shouldShowButton,
+  });
+}
+
+// Inject button if supported or detected as e-commerce
+if (shouldShowButton) {
+  logger.info('Product page detected', {
+    url: currentUrl,
+    hasSpecificAdapter: isSupported,
+    needsManual: needsManualSelection,
+  });
   injectTrackButton();
 }
 
@@ -76,7 +109,10 @@ function injectTrackButton() {
   // Create button
   const button = document.createElement('button');
   button.id = 'price-tracker-btn';
-  button.innerHTML = '💰 Track Price';
+  
+  // Check if manual selection is needed
+  const needsManual = requiresManualSelection(window.location.href);
+  button.innerHTML = needsManual ? '📍 Track Price (Manual)' : '💰 Track Price';
   button.style.cssText = `
     position: fixed;
     bottom: 20px;
@@ -121,8 +157,10 @@ async function handleTrackPrice() {
   const button = document.getElementById('price-tracker-btn') as HTMLButtonElement | null;
   if (!button) return;
 
+  const needsManual = requiresManualSelection(window.location.href);
+
   const resetButton = () => {
-    button.textContent = '💰 Track Price';
+    button.textContent = needsManual ? '📍 Track Price (Manual)' : '💰 Track Price';
     button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     button.disabled = false;
     button.style.opacity = '1';
@@ -151,6 +189,14 @@ async function handleTrackPrice() {
       return;
     }
 
+    // If adapter requires manual selection, activate price picker
+    if (adapter.requiresManualSelection) {
+      button.textContent = '👆 Select price on page...';
+      await handleManualTracking(button, resetButton, showError);
+      return;
+    }
+
+    // Automatic extraction for specific adapters
     const productData = await adapter.extractData(document.documentElement.outerHTML);
     if (!productData.available) {
       logger.warn('Product not available during extraction', {
@@ -195,6 +241,85 @@ async function handleTrackPrice() {
   }
 }
 
+/**
+ * Handle manual price tracking (price picker mode)
+ */
+async function handleManualTracking(
+  button: HTMLButtonElement,
+  resetButton: () => void,
+  showError: (msg: string) => void
+) {
+  try {
+    // Activate price picker
+    const result = await pricePicker.activate();
+
+    if (!result || !result.success) {
+      logger.info('Price picker cancelled or failed');
+      resetButton();
+      return;
+    }
+
+    // User selected a price element
+    button.textContent = '⏳ Saving...';
+
+    // Extract metadata from current page
+    const metadata = extractMetadata(document, window.location.href);
+    logger.debug('Metadata extracted in content script', {
+      title: metadata.title,
+      hasImage: !!metadata.imageUrl,
+      storeName: metadata.storeName,
+    });
+
+    const response = await sendMessageWithRetry({
+      action: 'trackProductManual',
+      url: window.location.href,
+      priceElement: {
+        selector: result.selector,
+        text: result.text,
+      },
+      metadata,
+    });
+
+    if (response.success) {
+      button.textContent = '✅ Tracked!';
+      button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+      setTimeout(() => {
+        resetButton();
+      }, 2000);
+    } else {
+      showError(response.error ?? 'Unknown error');
+    }
+  } catch (error) {
+    logger.error('Manual tracking failed', error);
+    showError(error instanceof Error ? error.message : 'Failed to track price');
+  }
+}
+
+// Listen for messages from popup or service worker
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === 'enablePricePicker') {
+    logger.info('Enabling price picker from external trigger');
+    handleManualTracking(
+      document.getElementById('price-tracker-btn') as HTMLButtonElement,
+      () => {},
+      (msg) => alert(`Failed: ${msg}`)
+    );
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === 'detectEcommerce') {
+    logger.info('E-commerce detection requested from popup');
+    const isEcommerce = isLikelyEcommerceSite(document, window.location.href);
+    sendResponse({ isEcommerce });
+    return true;
+  }
+  
+  // Return false for unhandled messages
+  return false;
+});
+
 // Listen for URL changes (SPA navigation)
 let lastUrl = window.location.href;
 new MutationObserver(() => {
@@ -208,8 +333,19 @@ new MutationObserver(() => {
       oldButton.remove();
     }
 
-    // Check if new URL is supported
-    if (isUrlSupported(currentUrl)) {
+    // Check if new URL is supported or needs manual selection
+    const isSupported = isUrlSupported(currentUrl);
+    const needsManual = requiresManualSelection(currentUrl);
+    
+    let shouldShow = isSupported;
+    
+    if (!isSupported && needsManual) {
+      // Run e-commerce detection for new URL
+      const isEcommerce = isLikelyEcommerceSite(document, currentUrl);
+      shouldShow = isEcommerce;
+    }
+    
+    if (shouldShow) {
       setTimeout(() => injectTrackButton(), 1000);
     }
   }
@@ -226,3 +362,10 @@ async function sendPingToServiceWorker() {
 
 // Initialize content script
 sendPingToServiceWorker();
+
+// Log initialization
+logger.debug('Content script initialized', {
+  url: window.location.href,
+  hasSpecificAdapter: isUrlSupported(window.location.href),
+  needsManualSelection: requiresManualSelection(window.location.href),
+});
