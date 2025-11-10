@@ -87,17 +87,17 @@ export function generateTestId(): string {
 export class MockChromeStorage {
   private storage: Record<string, unknown> = {};
 
-  get = vi.fn<(keys: string[] | string | null) => Promise<Record<string, unknown>>>().mockImplementation((keys) => {
-    if (keys === null) {
+  get = vi.fn<(_keys: string[] | string | null) => Promise<Record<string, unknown>>>().mockImplementation((_keys) => {
+    if (_keys === null) {
       return Promise.resolve(this.storage);
     }
 
-    if (typeof keys === 'string') {
-      return Promise.resolve({ [keys]: this.storage[keys] });
+    if (typeof _keys === 'string') {
+      return Promise.resolve({ [_keys]: this.storage[_keys] });
     }
 
     const result: Record<string, unknown> = {};
-    for (const key of keys) {
+    for (const key of _keys) {
       if (key in this.storage) {
         result[key] = this.storage[key];
       }
@@ -105,13 +105,13 @@ export class MockChromeStorage {
     return Promise.resolve(result);
   });
 
-  set = vi.fn<(data: Record<string, unknown>) => Promise<void>>().mockImplementation((data) => {
-    Object.assign(this.storage, data);
+  set = vi.fn<(_data: Record<string, unknown>) => Promise<void>>().mockImplementation((_data) => {
+    Object.assign(this.storage, _data);
     return Promise.resolve();
   });
 
-  remove = vi.fn<(keys: string | string[]) => Promise<void>>().mockImplementation((keys) => {
-    const keyArray = Array.isArray(keys) ? keys : [keys];
+  remove = vi.fn<(_keys: string | string[]) => Promise<void>>().mockImplementation((_keys) => {
+    const keyArray = Array.isArray(_keys) ? _keys : [_keys];
     for (const key of keyArray) {
       delete this.storage[key];
     }

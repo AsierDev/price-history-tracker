@@ -18,10 +18,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    exclude: [...configDefaults.exclude, '**/node_modules/**'],
+    exclude: [...configDefaults.exclude, '**/node_modules/**', '.eslintrc.test.cjs'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
       exclude: [
         'node_modules/',
         'src/test/',

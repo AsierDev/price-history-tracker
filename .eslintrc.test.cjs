@@ -11,7 +11,7 @@ module.exports = {
   },
   rules: {
     // Disable most rules for test files since Vitest handles module resolution
-    "no-unused-vars": "warn",
+    "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     "no-undef": "off"
   },
   globals: {

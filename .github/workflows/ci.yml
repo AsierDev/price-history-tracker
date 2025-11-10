@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -57,7 +57,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm ci
@@ -82,7 +82,7 @@ jobs:
 
       - name: Verify main files
         run: |
-          REQUIRED_FILES=("manifest.json" "popup.html" "service-worker.js" "content-script.js")
+          REQUIRED_FILES=("manifest.json" "popup/popup.html" "service-worker.js" "content-script.js")
           for file in "${REQUIRED_FILES[@]}"; do
             if [ ! -f "dist/$file" ]; then
               echo "❌ $file not found in dist/"
