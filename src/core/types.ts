@@ -65,6 +65,7 @@ export interface ExtensionConfig {
   maxProductsTracked: number;
   priceDropThreshold: number;
   serialMode: boolean;
+  notificationsEnabled: boolean;
   affiliateIds: AffiliateIds;
 }
 

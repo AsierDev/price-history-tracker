@@ -18,8 +18,24 @@ const loadingState = document.getElementById('loadingState') as HTMLDivElement;
 const searchInput = document.getElementById('searchInput') as HTMLInputElement;
 const refreshBtn = document.getElementById('refreshBtn') as HTMLButtonElement;
 const darkModeToggle = document.getElementById('darkModeToggle') as HTMLButtonElement;
+const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const totalProducts = document.getElementById('totalProducts') as HTMLSpanElement;
 const totalSavings = document.getElementById('totalSavings') as HTMLSpanElement;
+const firebaseStatus = document.getElementById('firebaseStatus') as HTMLSpanElement;
+const lastUpdate = document.getElementById('lastUpdate') as HTMLSpanElement;
+
+// Settings Modal Elements
+const settingsModal = document.getElementById('settingsModal') as HTMLDivElement;
+const closeSettingsBtn = document.getElementById('closeSettingsBtn') as HTMLButtonElement;
+const saveSettingsBtn = document.getElementById('saveSettingsBtn') as HTMLButtonElement;
+const enableNotifications = document.getElementById('enableNotifications') as HTMLInputElement;
+const notificationThreshold = document.getElementById('notificationThreshold') as HTMLInputElement;
+const thresholdValue = document.getElementById('thresholdValue') as HTMLSpanElement;
+const checkInterval = document.getElementById('checkInterval') as HTMLSelectElement;
+const firebaseStatusDetail = document.getElementById('firebaseStatusDetail') as HTMLSpanElement;
+const testNotificationBtn = document.getElementById('testNotificationBtn') as HTMLButtonElement;
+const testFirebaseBtn = document.getElementById('testFirebaseBtn') as HTMLButtonElement;
+const clearRateLimitsBtn = document.getElementById('clearRateLimitsBtn') as HTMLButtonElement;
 
 let allProducts: TrackedProduct[] = [];
 let filteredProducts: TrackedProduct[] = [];
@@ -30,6 +46,8 @@ async function init() {
   await loadProducts();
   setupEventListeners();
   loadDarkMode();
+  await updateStatusIndicators();
+  await loadSettings();
 }
 
 // Load products from storage
@@ -228,6 +246,18 @@ function setupEventListeners() {
   searchInput.addEventListener('input', handleSearch);
   refreshBtn.addEventListener('click', handleRefresh);
   darkModeToggle.addEventListener('click', handleDarkModeToggle);
+  settingsBtn.addEventListener('click', openSettingsModal);
+  closeSettingsBtn.addEventListener('click', closeSettingsModal);
+  saveSettingsBtn.addEventListener('click', saveSettings);
+  testNotificationBtn.addEventListener('click', testNotification);
+  testFirebaseBtn.addEventListener('click', testFirebaseConnection);
+  clearRateLimitsBtn.addEventListener('click', clearRateLimits);
+  enableNotifications.addEventListener('change', handleNotificationToggle);
+  
+  // Threshold slider
+  notificationThreshold.addEventListener('input', () => {
+    thresholdValue.textContent = `${notificationThreshold.value}%`;
+  });
 
   // Listen for storage changes (now using local storage)
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -541,7 +571,217 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
   });
 }
 
-// Start
+// Update status indicators (Firebase and last update)
+async function updateStatusIndicators() {
+  try {
+    // Check Firebase connection
+    const anonymousUserId = await StorageManager.getAnonymousUserId();
+    if (anonymousUserId) {
+      firebaseStatus.textContent = '🟢 Conectado';
+      firebaseStatus.className = 'status-badge connected';
+      firebaseStatus.title = `Firebase UID: ${anonymousUserId.substring(0, 8)}...`;
+    } else {
+      firebaseStatus.textContent = '🔴 No configurado';
+      firebaseStatus.className = 'status-badge disconnected';
+      firebaseStatus.title = 'Firebase no está configurado. Configura las variables de entorno.';
+    }
+
+    // Update last check time
+    const lastCheckTime = await StorageManager.getLastCheckTime();
+    if (lastCheckTime > 0) {
+      lastUpdate.textContent = formatTimestamp(lastCheckTime);
+      lastUpdate.title = `Última actualización: ${new Date(lastCheckTime).toLocaleString()}`;
+    } else {
+      lastUpdate.textContent = 'Nunca';
+      lastUpdate.title = 'No se han realizado chequeos automáticos aún';
+    }
+  } catch (error) {
+    console.error('Error updating status indicators:', error);
+    firebaseStatus.textContent = '⚪ Error';
+    firebaseStatus.className = 'status-badge';
+  }
+}
+
+// Load current settings
+async function loadSettings() {
+  try {
+    const config = await StorageManager.getConfig();
+    
+    // Load notification settings
+    notificationThreshold.value = config.priceDropThreshold.toString();
+    thresholdValue.textContent = `${config.priceDropThreshold}%`;
+    enableNotifications.checked = config.notificationsEnabled;
+    updateNotificationUIState();
+
+    // Load check interval
+    checkInterval.value = config.checkIntervalHours.toString();
+    
+    // Check Firebase status
+    const anonymousUserId = await StorageManager.getAnonymousUserId();
+    if (anonymousUserId) {
+      firebaseStatusDetail.textContent = `✅ Conectado (UID: ${anonymousUserId.substring(0, 12)}...)`;
+      firebaseStatusDetail.className = 'status-detail success';
+    } else {
+      firebaseStatusDetail.textContent = '❌ No conectado. Firebase necesita configuración.';
+      firebaseStatusDetail.className = 'status-detail error';
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+}
+
+// Open settings modal
+function openSettingsModal() {
+  settingsModal.style.display = 'flex';
+  loadSettings(); // Reload settings when opening
+}
+
+// Close settings modal
+function closeSettingsModal() {
+  settingsModal.style.display = 'none';
+}
+
+// Save settings
+async function saveSettings() {
+  try {
+    const newThreshold = parseInt(notificationThreshold.value);
+    const newInterval = parseInt(checkInterval.value);
+    
+    // Update config
+    await StorageManager.updateConfig({
+      priceDropThreshold: newThreshold,
+      checkIntervalHours: newInterval,
+      notificationsEnabled: enableNotifications.checked,
+    });
+
+    // Update alarm with new interval
+    await chrome.runtime.sendMessage({
+      action: 'updateAlarm',
+      intervalHours: newInterval,
+    });
+
+    // Show success feedback
+    saveSettingsBtn.textContent = '✅ Guardado!';
+    setTimeout(() => {
+      saveSettingsBtn.textContent = '💾 Guardar Configuración';
+      closeSettingsModal();
+    }, 1500);
+
+    // Reload status indicators
+    await updateStatusIndicators();
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    saveSettingsBtn.textContent = '❌ Error';
+    setTimeout(() => {
+      saveSettingsBtn.textContent = '💾 Guardar Configuración';
+    }, 2000);
+  }
+}
+
+// Test notification
+async function testNotification() {
+  try {
+    testNotificationBtn.disabled = true;
+    testNotificationBtn.textContent = '📤 Enviando...';
+
+    await chrome.notifications.create('test-notification', {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('popup/icons/icon128.svg'),
+      title: '🎉 Notificación de Prueba',
+      message: 'Las notificaciones funcionan correctamente!',
+      priority: 2,
+    });
+
+    testNotificationBtn.textContent = '✅ Enviada!';
+    setTimeout(() => {
+      testNotificationBtn.textContent = '🔔 Probar notificación';
+      testNotificationBtn.disabled = false;
+    }, 2000);
+  } catch (error) {
+    console.error('Error testing notification:', error);
+    testNotificationBtn.textContent = '❌ Error';
+    setTimeout(() => {
+      testNotificationBtn.textContent = '🔔 Probar notificación';
+      testNotificationBtn.disabled = false;
+    }, 2000);
+  }
+}
+
+// Test Firebase connection
+async function testFirebaseConnection() {
+  try {
+    testFirebaseBtn.disabled = true;
+    testFirebaseBtn.textContent = '🧪 Probando...';
+    firebaseStatusDetail.textContent = '⏳ Comprobando conexión...';
+    firebaseStatusDetail.className = 'status-detail';
+
+    // Try to get anonymous user ID (this will authenticate if needed)
+    const anonymousUserId = await StorageManager.getAnonymousUserId();
+    
+    if (anonymousUserId) {
+      firebaseStatusDetail.textContent = `✅ Conectado exitosamente! (UID: ${anonymousUserId.substring(0, 12)}...)`;
+      firebaseStatusDetail.className = 'status-detail success';
+      testFirebaseBtn.textContent = '✅ Conectado!';
+    } else {
+      firebaseStatusDetail.textContent = '❌ No configurado. Revisa las variables de entorno FIREBASE_*.';
+      firebaseStatusDetail.className = 'status-detail error';
+      testFirebaseBtn.textContent = '❌ Error';
+    }
+
+    setTimeout(() => {
+      testFirebaseBtn.textContent = '🧪 Probar conexión Firebase';
+      testFirebaseBtn.disabled = false;
+    }, 2000);
+
+    // Update header status
+    await updateStatusIndicators();
+  } catch (error) {
+    console.error('Error testing Firebase:', error);
+    firebaseStatusDetail.textContent = `❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    firebaseStatusDetail.className = 'status-detail error';
+    testFirebaseBtn.textContent = '❌ Error';
+    setTimeout(() => {
+      testFirebaseBtn.textContent = '🧪 Probar conexión Firebase';
+      testFirebaseBtn.disabled = false;
+    }, 2000);
+  }
+}
+
+// Clear rate limits
+async function clearRateLimits() {
+  try {
+    clearRateLimitsBtn.disabled = true;
+    clearRateLimitsBtn.textContent = '⏳ Limpiando...';
+
+    await chrome.runtime.sendMessage({ action: 'clearAllRateLimits' });
+
+    clearRateLimitsBtn.textContent = '✅ Limpiados!';
+    setTimeout(() => {
+      clearRateLimitsBtn.textContent = '🔓 Limpiar Rate Limits';
+      clearRateLimitsBtn.disabled = false;
+    }, 2000);
+  } catch (error) {
+    console.error('Error clearing rate limits:', error);
+    clearRateLimitsBtn.textContent = '❌ Error';
+    setTimeout(() => {
+      clearRateLimitsBtn.textContent = '🔓 Limpiar Rate Limits';
+      clearRateLimitsBtn.disabled = false;
+    }, 2000);
+  }
+}
+
+function handleNotificationToggle(): void {
+  updateNotificationUIState();
+}
+
+function updateNotificationUIState(): void {
+  const notificationsEnabled = enableNotifications.checked;
+  notificationThreshold.disabled = !notificationsEnabled;
+  testNotificationBtn.disabled = !notificationsEnabled;
+  thresholdValue.classList.toggle('disabled', !notificationsEnabled);
+}
+
+// Initialize on load
 init();
 
 // Notify service worker when popup closes

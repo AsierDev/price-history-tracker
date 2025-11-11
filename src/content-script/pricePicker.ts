@@ -363,7 +363,10 @@ export class PricePicker {
       return;
     }
 
-    // Generate CSS selector
+    // Remove temporary highlight helper class before generating selector
+    this.removeHighlight();
+
+    // Generate CSS selector (ignoring helper classes)
     const selector = this.generateCssSelector(element);
 
     if (!selector) {
@@ -399,10 +402,13 @@ export class PricePicker {
         }
       }
 
-      // Priority 2: Price-related classes
+      // Priority 2: Price-related classes (excluding picker helpers)
       const priceClasses = ['price', 'cost', 'amount', 'value', 'pricing'];
+      const classList = Array.from(element.classList).filter(
+        className => !className.startsWith('price-picker')
+      );
+
       for (const priceClass of priceClasses) {
-        const classList = Array.from(element.classList);
         for (const className of classList) {
           if (className.toLowerCase().includes(priceClass)) {
             const classSelector = `.${CSS.escape(className)}`;
@@ -414,9 +420,9 @@ export class PricePicker {
       }
 
       // Priority 3: Combination of classes
-      if (element.classList.length > 0) {
-        const classSelector = Array.from(element.classList)
-          .map((c) => `.${CSS.escape(c)}`)
+      if (classList.length > 0) {
+        const classSelector = classList
+          .map(className => `.${CSS.escape(className)}`)
           .join('');
         if (this.validateSelector(classSelector, element)) {
           return classSelector;
@@ -438,34 +444,33 @@ export class PricePicker {
   }
 
   /**
-   * Generate DOM path selector
+   * Generate DOM path selector (limited depth)
    */
   private getDomPath(element: HTMLElement, maxDepth = 5): string {
-    const path: string[] = [];
+    const segments: string[] = [];
     let current: HTMLElement | null = element;
     let depth = 0;
 
     while (current && current.tagName !== 'BODY' && depth < maxDepth) {
-      let selector = current.tagName.toLowerCase();
+      let segment = current.tagName.toLowerCase();
 
-      // Add nth-child if needed
       if (current.parentElement) {
         const siblings = Array.from(current.parentElement.children).filter(
-          (el) => el.tagName === current!.tagName
+          sibling => sibling.tagName === current!.tagName
         );
 
         if (siblings.length > 1) {
           const index = siblings.indexOf(current) + 1;
-          selector += `:nth-child(${index})`;
+          segment += `:nth-child(${index})`;
         }
       }
 
-      path.unshift(selector);
+      segments.unshift(segment);
       current = current.parentElement;
       depth++;
     }
 
-    return path.join(' > ');
+    return segments.join(' > ');
   }
 
   /**

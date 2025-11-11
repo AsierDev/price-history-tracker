@@ -150,6 +150,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         });
       return true;
 
+    case 'updateAlarm':
+      handleUpdateAlarm(message.intervalHours)
+        .then(() => sendResponse({ success: true }))
+        .catch((error: unknown) => {
+          logger.error('Failed to update alarm', error);
+          sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        });
+      return true;
+
     default:
       logger.warn('Unknown message action', { action: message.action });
       sendResponse({ success: false, error: 'Unknown action' });
@@ -407,6 +416,27 @@ async function handleOpenProduct(productId: string): Promise<void> {
 async function handleRemoveProduct(productId: string): Promise<void> {
   await StorageManager.removeProduct(productId);
   logger.info('Product removed', { productId });
+}
+
+/**
+ * Handle update alarm interval
+ */
+async function handleUpdateAlarm(intervalHours: number): Promise<void> {
+  try {
+    // Clear existing alarm
+    await chrome.alarms.clear(ALARM_NAME);
+    
+    // Create new alarm with updated interval
+    await chrome.alarms.create(ALARM_NAME, {
+      delayInMinutes: 1, // First check after 1 minute
+      periodInMinutes: intervalHours * 60,
+    });
+    
+    logger.info('Alarm updated', { intervalHours });
+  } catch (error) {
+    logger.error('Failed to update alarm', error);
+    throw error;
+  }
 }
 
 /**

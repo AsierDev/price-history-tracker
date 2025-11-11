@@ -10,8 +10,17 @@
   <div class="container">
     <!-- Header -->
     <header class="header">
-      <h1>💰 Price Tracker</h1>
+      <div class="header-title">
+        <h1>💰 Price Tracker</h1>
+        <div class="header-status">
+          <span id="firebaseStatus" class="status-badge" title="Firebase status">⚪ Checking...</span>
+          <span id="lastUpdate" class="last-update" title="Last price check">Never updated</span>
+        </div>
+      </div>
       <div class="header-actions">
+        <button id="settingsBtn" class="icon-btn" title="Settings">
+          <span>⚙️</span>
+        </button>
         <button id="refreshBtn" class="icon-btn" title="Refresh prices">
           <span>🔄</span>
         </button>
@@ -59,6 +68,79 @@
     <div id="loadingState" class="loading-state">
       <div class="spinner"></div>
       <p>Loading products...</p>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal" style="display: none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚙️ Configuración</h2>
+        <button id="closeSettingsBtn" class="modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Notification Settings -->
+        <div class="settings-section">
+          <h3>📢 Notificaciones</h3>
+          <div class="settings-item">
+            <label for="enableNotifications">Activar notificaciones</label>
+            <input type="checkbox" id="enableNotifications" checked>
+          </div>
+          <div class="settings-item">
+            <label for="notificationThreshold">Umbral de alerta (%):</label>
+            <div class="threshold-input">
+              <input type="range" id="notificationThreshold" min="1" max="50" value="5" step="1">
+              <span id="thresholdValue" class="threshold-value">5%</span>
+            </div>
+            <p class="settings-help">Recibir alerta cuando el precio baje más de este porcentaje</p>
+          </div>
+          <div class="settings-item">
+            <button id="testNotificationBtn" class="btn btn-secondary">🔔 Probar notificación</button>
+          </div>
+        </div>
+
+        <!-- Check Interval Settings -->
+        <div class="settings-section">
+          <h3>⏰ Intervalo de Chequeo</h3>
+          <div class="settings-item">
+            <label for="checkInterval">Frecuencia:</label>
+            <select id="checkInterval">
+              <option value="1">Cada 1 hora</option>
+              <option value="3">Cada 3 horas</option>
+              <option value="6" selected>Cada 6 horas (recomendado)</option>
+              <option value="12">Cada 12 horas</option>
+              <option value="24">Cada 24 horas</option>
+            </select>
+            <p class="settings-help">Menor frecuencia = menos consumo de batería</p>
+          </div>
+        </div>
+
+        <!-- Firebase Status -->
+        <div class="settings-section">
+          <h3>☁️ Firebase (Historial Compartido)</h3>
+          <div class="settings-item">
+            <span id="firebaseStatusDetail" class="status-detail">Comprobando conexión...</span>
+          </div>
+          <div class="settings-item">
+            <button id="testFirebaseBtn" class="btn btn-secondary">🧪 Probar conexión Firebase</button>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="settings-section">
+          <h3>🛠️ Acciones</h3>
+          <div class="settings-item">
+            <button id="clearRateLimitsBtn" class="btn btn-secondary">🔓 Limpiar Rate Limits</button>
+            <p class="settings-help">Permite volver a checkear productos bloqueados temporalmente</p>
+          </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="settings-footer">
+          <button id="saveSettingsBtn" class="btn btn-primary">💾 Guardar Configuración</button>
+        </div>
+      </div>
     </div>
   </div>
 

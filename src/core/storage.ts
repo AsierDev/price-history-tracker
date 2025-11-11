@@ -27,6 +27,7 @@ const DEFAULT_CONFIG: ExtensionConfig = {
   maxProductsTracked: LIMITS.MAX_PRODUCTS,
   priceDropThreshold: PERCENTAGES.PRICE_DROP_THRESHOLD,
   serialMode: true,
+  notificationsEnabled: true,
   affiliateIds: {
     amazon: process.env.AFFILIATE_AMAZON_TAG || '',
     ebay: process.env.AFFILIATE_EBAY_ID || '',
