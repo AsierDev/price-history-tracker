@@ -16,7 +16,7 @@ export class AwinAdapter implements PriceAdapter {
     return false;
   }
 
-  async extractData(_html: string): Promise<ExtractedProductData> {
+  async extractData(_html: string, _customSelector?: string): Promise<ExtractedProductData> {
     return {
       title: 'Product',
       price: 0,

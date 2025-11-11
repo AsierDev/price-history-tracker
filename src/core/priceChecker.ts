@@ -116,14 +116,25 @@ export class PriceChecker {
 
       const html = await response.text();
 
-      // Extract data
-      const data = await adapter.extractData(html);
+      // Extract data (pass customSelector if present for generic adapter)
+      const data = await adapter.extractData(html, product.customSelector);
 
       if (!data.available) {
-        logger.warn('Product not available', {
-          productId: product.id,
-          error: data.error,
-        });
+        // Special handling for generic adapter with broken selector
+        if (product.adapter === 'generic' && product.customSelector) {
+          logger.warn('Generic product price element not found - selector may be broken', {
+            productId: product.id,
+            selector: product.customSelector,
+            error: data.error,
+          });
+          // Mark product as having issues but don't fail completely
+          // User will need to re-select the price element
+        } else {
+          logger.warn('Product not available', {
+            productId: product.id,
+            error: data.error,
+          });
+        }
         await RateLimiter.recordFailure(product.url, data.error || 'Product unavailable');
         return { success: false };
       }

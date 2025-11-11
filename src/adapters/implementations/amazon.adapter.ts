@@ -24,7 +24,7 @@ export class AmazonAdapter implements PriceAdapter {
     return this.urlPatterns.some(pattern => pattern.test(url));
   }
 
-  async extractData(html: string): Promise<ExtractedProductData> {
+  async extractData(html: string, _customSelector?: string): Promise<ExtractedProductData> {
     try {
       const doc = createDocument(html);
 
