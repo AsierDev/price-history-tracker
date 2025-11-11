@@ -108,7 +108,8 @@ function createProductCard(product: TrackedProduct): string {
           ${priceChange !== 0 ? `<span class="price-change ${changeClass}">${changeSymbol} ${Math.abs(parseFloat(percentChange))}%</span>` : ''}
         </div>
         <div class="product-meta">
-          Added ${formatTimestamp(product.addedAt)} • ${product.adapter}
+          Added ${formatTimestamp(product.addedAt)} • ${product.adapter === 'generic' ? (product.storeName || 'generic') : product.adapter}
+          ${product.adapter === 'generic' && product.customSelector ? '<span class="selector-badge" title="Custom selector: ' + product.customSelector + '">🎯</span>' : ''}
         </div>
       </div>
       <div class="product-actions">

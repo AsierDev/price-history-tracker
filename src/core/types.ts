@@ -23,6 +23,8 @@ export interface TrackedProduct {
   addedAt: number;
   lastCheckedAt: number;
   isActive: boolean;
+  customSelector?: string; // For generic adapter: CSS selector to find price element
+  storeName?: string; // For generic adapter: store name (e.g., "MediaMarkt", "PC Componentes")
   // imageUrl and priceHistory are NOT stored locally (moved to backend)
 }
 
