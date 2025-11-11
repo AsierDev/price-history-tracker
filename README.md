@@ -1,6 +1,6 @@
 # 💰 Price History Tracker
 
-Chrome extension para rastrear historial de precios en Amazon, eBay y AliExpress.
+Chrome extension para rastrear historial de precios en **cualquier sitio e-commerce**. Incluye soporte específico para Amazon, eBay y AliExpress, más un **Generic Adapter** que permite trackear precios en cualquier otra tienda mediante selección manual.
 
 [![CI](https://github.com/your-username/price-history-tracker/workflows/CI/badge.svg)](https://github.com/your-username/price-history-tracker/actions)
 [![Coverage](https://codecov.io/gh/your-username/price-history-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/your-username/price-history-tracker)
@@ -26,12 +26,18 @@ npm run build
 
 ## ✨ Características
 
-- ✅ **Soporte Multi-Plataforma**: Amazon, eBay, AliExpress
+### 🎯 Core Features
+- ✅ **Soporte Multi-Plataforma**: Amazon, eBay, AliExpress (adapters específicos)
+- ✅ **Generic Adapter (Universal)**: Trackea **cualquier sitio web** mediante selección manual de precio
 - ✅ **Chequeo Automático**: Cada 6 horas
 - ✅ **Notificaciones**: Alertas cuando el precio baja >5%
 - ✅ **Gráficos de Historial**: Visualización temporal de precios con Chart.js
-- ✅ **Rate Limiting**: Backoff exponencial para evitar baneos
 - ✅ **Dark Mode**: Tema claro/oscuro (gráficos adaptativos)
+
+### 🔧 Technical Features
+- ✅ **Price Picker Visual**: Selección interactiva de elementos de precio con preview
+- ✅ **Multi-Currency Support**: USD, EUR, GBP, JPY, CAD, AUD, etc.
+- ✅ **Rate Limiting**: Backoff exponencial para evitar baneos
 - ✅ **URLs de Afiliado**: Estructura lista para monetización
 - ✅ **Backend Firebase**: Historial compartido entre usuarios (anónimo)
 - ✅ **Storage Optimizado**: chrome.storage.local con keys divididas (sin límites de quota)
@@ -39,9 +45,11 @@ npm run build
 ## 📖 Documentación
 
 - [**Setup & Testing Guide**](docs/README.md) - Instalación, uso y testing
+- [**Generic Adapter Guide**](docs/GENERIC_ADAPTER_GUIDE.md) - **NUEVO**: Cómo usar el tracker universal
 - [**Adapter Development Guide**](docs/README-ADAPTERS.md) - Cómo agregar nuevas plataformas
 - [**Firebase Setup Guide**](docs/FIREBASE_SETUP.md) - Configuración del backend Firebase
 - [**Backend Integration Changelog**](docs/CHANGELOG_BACKEND_INTEGRATION.md) - Detalles técnicos de la integración
+- [**Bug Fixes**](docs/BUG_FIX_MANIFEST_PERMISSIONS.md) - Fixes aplicados para Generic Adapter
 
 ## 🏗️ Arquitectura
 
