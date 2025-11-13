@@ -28,7 +28,7 @@ export class AwinAdapter implements PriceAdapter {
 
   generateAffiliateUrl(url: string): string {
     // TODO: Implement AWIN URL generation
-    // const publisherId = process.env.AWIN_PUBLISHER_ID;
+    // const publisherId = ENV.AWIN_PUBLISHER_ID;
     // return `https://www.awin1.com/cread.php?awinmid=...&awinaffid=${publisherId}&clickref=...&p=${encodeURIComponent(url)}`;
     return url;
   }

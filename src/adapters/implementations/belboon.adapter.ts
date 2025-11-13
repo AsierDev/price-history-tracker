@@ -28,7 +28,7 @@ export class BelboonAdapter implements PriceAdapter {
 
   generateAffiliateUrl(url: string): string {
     // TODO: Implement Belboon URL generation
-    // const apiKey = process.env.BELBOON_API_KEY;
+    // const apiKey = ENV.BELBOON_API_KEY;
     // return `https://partners.belboon.com/...?apiKey=${apiKey}&url=${encodeURIComponent(url)}`;
     return url;
   }

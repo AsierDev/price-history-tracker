@@ -6,9 +6,12 @@ This guide shows how to add support for a new e-commerce platform.
 
 The adapter pattern allows easy extension to new platforms. Each adapter:
 - Implements the `PriceAdapter` interface
-- Extracts product data from HTML
-- Generates affiliate URLs
-- Is auto-discovered by the registry
+- Parses HTML **using `createDocument` (linkedom)** — never `DOMParser` inside the service worker
+- Extracts metadata (title/image) directly del DOM real
+- Generates affiliate URLs (via placeholders declarados en `.env`)
+- Is auto-discovered by the registry + tier system
+
+> ℹ️ Actualmente tenemos adapters específicos para **Amazon, eBay, AliExpress, PcComponentes y MediaMarkt**. Usa cualquiera de ellos como referencia.
 
 ## Step-by-Step Guide
 
@@ -20,6 +23,7 @@ Create `src/adapters/implementations/yourplatform.adapter.ts`:
 import type { PriceAdapter } from '../types';
 import type { ExtractedProductData } from '../../core/types';
 import { logger } from '../../utils/logger';
+import { createDocument } from '../../utils/htmlParser';
 
 export class YourPlatformAdapter implements PriceAdapter {
   name = 'yourplatform';
@@ -36,8 +40,7 @@ export class YourPlatformAdapter implements PriceAdapter {
 
   async extractData(html: string): Promise<ExtractedProductData> {
     try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
+      const doc = createDocument(html);
 
       // Extract title
       const title = this.extractTitle(doc);
@@ -86,10 +89,9 @@ export class YourPlatformAdapter implements PriceAdapter {
   }
 
   generateAffiliateUrl(url: string): string {
-    const affiliateId = process.env.AFFILIATE_YOURPLATFORM_ID;
-    if (affiliateId) {
-      return `https://affiliate.network.com/click?id=${affiliateId}&url=${encodeURIComponent(url)}`;
-    }
+    // Usa variables inyectadas via esbuild.define (ver src/config/env.ts)
+    // Ejemplo:
+    // return addQueryParam(url, 'tag', ENV.AFFILIATE_YOURPLATFORM_ID ?? '');
     return url;
   }
 

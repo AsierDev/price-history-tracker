@@ -135,3 +135,18 @@ export class MockChromeStorage {
     this.clear.mockClear();
   }
 }
+
+type RuntimeEnvGlobal = typeof globalThis & {
+  __PHT_RUNTIME_ENV__?: Record<string, string | undefined>;
+};
+
+/**
+ * Update runtime ENV overrides for tests (keeps runtime free from process.env)
+ */
+export function setRuntimeEnv(overrides: Record<string, string | undefined>): void {
+  const runtimeGlobal = globalThis as RuntimeEnvGlobal;
+  runtimeGlobal.__PHT_RUNTIME_ENV__ = {
+    ...(runtimeGlobal.__PHT_RUNTIME_ENV__ ?? {}),
+    ...overrides,
+  };
+}

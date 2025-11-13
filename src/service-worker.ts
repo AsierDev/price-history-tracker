@@ -7,13 +7,14 @@ import { StorageManager } from './core/storage';
 import { PriceChecker } from './core/priceChecker';
 import { RateLimiter } from './core/rateLimiter';
 import { NotificationManager } from './core/notificationManager';
-import { getAdapterForUrl } from './adapters/registry';
+import { getAdapterForUrl, getTierInfo, getBadgeInfo } from './adapters/registry';
 import { getCurrentTimestamp } from './utils/dateUtils';
 import { normalizeUrl } from './utils/urlUtils';
 import { logger } from './utils/logger';
 import { addPriceToBackend } from './backend/backend';
 import { parseGenericPrice } from './utils/priceParser';
-import { extractMetadata } from './utils/metadataExtractor';
+import type { ExtractedMetadata } from './utils/metadataExtractor';
+import { isSupportedSite, getSiteInfo } from './config/supportedSites';
 
 const ALARM_NAME = 'checkPrices';
 const CHECK_INTERVAL_MINUTES = 360; // 6 hours
@@ -29,6 +30,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
   try {
     // Initialize storage
+    await StorageManager.migrateLegacyFormat();
     await StorageManager.getData();
 
     // Setup notification handlers
@@ -88,7 +90,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ success: true, pong: true });
       return true;
     case 'trackProduct':
-      handleTrackProduct(message.url, message.productData)
+      handleTrackProduct(message.url, message.productData, message.metadata)
         .then(result => sendResponse(result))
         .catch(error => {
           logger.error('Failed to track product', error);
@@ -158,6 +160,37 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
         });
       return true;
+    case 'getTierInfo':
+      if (!message.url) {
+        sendResponse({ success: false, error: 'Missing URL' });
+        return false;
+      }
+      sendResponse(getTierInfo(message.url));
+      return false;
+    case 'getBadgeInfo':
+      if (!message.url) {
+        sendResponse({ success: false, error: 'Missing URL' });
+        return false;
+      }
+      sendResponse(getBadgeInfo(message.url));
+      return false;
+    case 'getAdapterForUrl':
+      if (!message.url) {
+        sendResponse({ success: false, error: 'Missing URL' });
+        return false;
+      }
+      sendResponse({ name: getAdapterForUrl(message.url).name });
+      return false;
+    case 'isSupportedSite':
+      if (!message.domain) {
+        sendResponse({ supported: false });
+        return false;
+      }
+      sendResponse({
+        supported: isSupportedSite(message.domain),
+        siteInfo: getSiteInfo(message.domain),
+      });
+      return false;
 
     default:
       logger.warn('Unknown message action', { action: message.action });
@@ -172,6 +205,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function handleTrackProduct(
   url: string,
   extractedData?: ExtractedProductData,
+  metadata?: ExtractedMetadata,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     logger.info('Tracking product', { url });
@@ -206,14 +240,16 @@ async function handleTrackProduct(
       return { success: false, error: data.error || 'Product not available' };
     }
 
+    const resolvedMetadata = resolveMetadata(metadata, data, normalizedUrl, adapter.name);
+
     // Send to backend first (get shared history)
     const backendResponse = await addPriceToBackend({
       url: normalizedUrl,
       price: data.price,
       currency: data.currency,
-      title: data.title,
+      title: resolvedMetadata.title,
       platform: adapter.name,
-      imageUrl: data.imageUrl,
+      imageUrl: resolvedMetadata.imageUrl ?? data.imageUrl,
     });
 
     if (!backendResponse.success) {
@@ -225,12 +261,13 @@ async function handleTrackProduct(
     // Create product metadata (lightweight, no imageUrl or priceHistory)
     const product: TrackedProduct = {
       id: generateId(),
-      title: data.title,
+      title: resolvedMetadata.title,
       url: normalizedUrl,
       currentPrice: data.price,
       initialPrice: data.price,
       currency: data.currency,
       adapter: adapter.name,
+      storeName: resolvedMetadata.storeName,
       addedAt: getCurrentTimestamp(),
       lastCheckedAt: getCurrentTimestamp(),
       isActive: true,
@@ -260,7 +297,7 @@ async function handleTrackProduct(
 async function handleTrackProductManual(
   url: string,
   priceElement: { selector: string; text: string },
-  metadata?: { title: string; imageUrl?: string; storeName: string }
+  metadata?: ExtractedMetadata
 ): Promise<{ success: boolean; error?: string }> {
   try {
     logger.info('Tracking product manually', { url, selector: priceElement.selector });
@@ -283,69 +320,16 @@ async function handleTrackProductManual(
       rawText: parsedPrice.rawText,
     });
 
-    // Get generic adapter
-    const adapter = getAdapterForUrl(normalizedUrl);
-    if (!adapter) {
-      return { success: false, error: 'Failed to get adapter' };
-    }
-
-    // Use metadata from content script if provided, otherwise use defaults
-    let pageTitle = 'Product from Website';
-    let imageUrl: string | undefined;
-    let storeName = 'Unknown Store';
-
-    if (metadata) {
-      // Metadata extracted in content script (preferred method)
-      pageTitle = metadata.title;
-      imageUrl = metadata.imageUrl;
-      storeName = metadata.storeName;
-
-      logger.debug('Using metadata from content script', {
-        title: pageTitle,
-        hasImage: !!imageUrl,
-        storeName,
-      });
-    } else {
-      // Fallback: try to fetch and extract (may fail due to CORS)
-      logger.warn('No metadata provided from content script, using fallback');
-      try {
-        const response = await fetch(normalizedUrl, {
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-        });
-
-        if (response.ok) {
-          const html = await response.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-
-          // Extract all metadata using smart extractor
-          const extractedMetadata = extractMetadata(doc, normalizedUrl);
-          pageTitle = extractedMetadata.title;
-          imageUrl = extractedMetadata.imageUrl;
-          storeName = extractedMetadata.storeName;
-
-          logger.debug('Metadata extracted via fetch fallback', {
-            title: pageTitle,
-            hasImage: !!imageUrl,
-            storeName,
-          });
-        }
-      } catch (error) {
-        logger.warn('Failed to fetch page for metadata extraction', { error });
-        // Continue with generic values
-      }
-    }
+    const resolvedMetadata = resolveMetadata(metadata, undefined, normalizedUrl, 'generic');
 
     // Send to backend (shared history)
     const backendResponse = await addPriceToBackend({
       url: normalizedUrl,
       price: parsedPrice.price,
       currency: parsedPrice.currency,
-      title: pageTitle,
+      title: resolvedMetadata.title,
       platform: 'generic',
-      imageUrl,
+      imageUrl: resolvedMetadata.imageUrl,
     });
 
     if (!backendResponse.success) {
@@ -357,14 +341,14 @@ async function handleTrackProductManual(
     // Create product with custom selector and store name
     const product: TrackedProduct = {
       id: generateId(),
-      title: pageTitle,
+      title: resolvedMetadata.title,
       url: normalizedUrl,
       currentPrice: parsedPrice.price,
       initialPrice: parsedPrice.price,
       currency: parsedPrice.currency,
       adapter: 'generic',
       customSelector: priceElement.selector, // Store custom selector for future checks
-      storeName, // Store the store name for display in popup
+      storeName: resolvedMetadata.storeName, // Store the store name for display in popup
       addedAt: getCurrentTimestamp(),
       lastCheckedAt: getCurrentTimestamp(),
       isActive: true,
@@ -393,8 +377,7 @@ async function handleTrackProductManual(
  * Handle open product request
  */
 async function handleOpenProduct(productId: string): Promise<void> {
-  const products = await StorageManager.getProducts();
-  const product = products.find(p => p.id === productId);
+  const product = await StorageManager.getProductById(productId);
 
   if (!product) {
     throw new Error('Product not found');
@@ -444,6 +427,43 @@ async function handleUpdateAlarm(intervalHours: number): Promise<void> {
  */
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Resolve metadata coming from content script or fall back to extracted data
+ */
+function resolveMetadata(
+  provided: ExtractedMetadata | undefined,
+  extracted: ExtractedProductData | null | undefined,
+  url: string,
+  adapterName: string,
+): ExtractedMetadata {
+  let fallbackStore = adapterName || 'Tienda desconocida';
+  let fallbackTitle = extracted?.title?.trim() || provided?.title?.trim() || 'Producto de la web';
+
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    fallbackStore = fallbackStore === adapterName ? hostname : fallbackStore;
+    fallbackTitle = fallbackTitle || `Producto de ${hostname}`;
+  } catch {
+    // Ignore URL parsing errors
+  }
+
+  const resolved: ExtractedMetadata = {
+    // Prefer adapter data when available (adapters usually have cleaner info)
+    title: extracted?.title?.trim() || provided?.title?.trim() || fallbackTitle,
+    imageUrl: extracted?.imageUrl || provided?.imageUrl,
+    storeName: provided?.storeName || fallbackStore,
+  };
+
+  if (!provided) {
+    logger.warn('Metadata missing from content script, using fallbacks', {
+      url,
+      adapterName,
+    });
+  }
+
+  return resolved;
 }
 
 // Keep service worker alive

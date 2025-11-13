@@ -11,7 +11,18 @@
 
 import type { StorageData, TrackedProduct, ExtensionConfig, RateLimitBucket } from './types';
 import { logger } from '../utils/logger';
-import { PERCENTAGES, LIMITS } from '../shared/constants';
+import { ENV } from '../config/env';
+import { PERCENTAGES, LIMITS, STORAGE_KEYS } from '../shared/constants';
+
+function filterUndefinedValues<T extends object>(obj: T): T {
+  const cleaned = Object.entries(obj).reduce<Record<string, unknown>>((acc, [key, value]) => {
+    if (value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+  return cleaned as T;
+}
 
 // Storage key prefixes
 const KEYS = {
@@ -22,6 +33,8 @@ const KEYS = {
   RATE_LIMIT_PREFIX: 'rateLimit_',
 } as const;
 
+const productKey = (id: string) => `${KEYS.PRODUCT_PREFIX}${id}`;
+
 const DEFAULT_CONFIG: ExtensionConfig = {
   checkIntervalHours: 6,
   maxProductsTracked: LIMITS.MAX_PRODUCTS,
@@ -29,9 +42,9 @@ const DEFAULT_CONFIG: ExtensionConfig = {
   serialMode: true,
   notificationsEnabled: true,
   affiliateIds: {
-    amazon: process.env.AFFILIATE_AMAZON_TAG || '',
-    ebay: process.env.AFFILIATE_EBAY_ID || '',
-    aliexpress: process.env.AFFILIATE_ADMITAD_ID || '',
+    amazon: ENV.AFFILIATE_AMAZON_TAG,
+    ebay: ENV.AFFILIATE_EBAY_ID,
+    aliexpress: ENV.AFFILIATE_ADMITAD_ID,
   },
 };
 
@@ -41,6 +54,10 @@ const DEFAULT_STORAGE_DATA: StorageData = {
   config: DEFAULT_CONFIG,
   lastCheckTime: 0,
 };
+
+function sanitizeProduct(product: TrackedProduct): TrackedProduct {
+  return filterUndefinedValues(product);
+}
 
 export class StorageManager {
   /**
@@ -86,7 +103,7 @@ export class StorageManager {
       // Save products individually
       const productUpdates: Record<string, TrackedProduct> = {};
       for (const product of data.products) {
-        productUpdates[`${KEYS.PRODUCT_PREFIX}${product.id}`] = product;
+        productUpdates[productKey(product.id)] = sanitizeProduct(product);
       }
       await chrome.storage.local.set(productUpdates);
 
@@ -114,7 +131,7 @@ export class StorageManager {
 
       for (const [key, value] of Object.entries(allData)) {
         if (key.startsWith(KEYS.PRODUCT_PREFIX)) {
-          products.push(value as TrackedProduct);
+          products.push(sanitizeProduct(value as TrackedProduct));
         }
       }
 
@@ -122,6 +139,21 @@ export class StorageManager {
     } catch (error) {
       logger.error('Failed to get products', error);
       return [];
+    }
+  }
+
+  /**
+   * Get single product by id
+   */
+  static async getProductById(productId: string): Promise<TrackedProduct | undefined> {
+    try {
+      const key = productKey(productId);
+      const result = await chrome.storage.local.get(key);
+      const product = result[key] as TrackedProduct | undefined;
+      return product ? sanitizeProduct(product) : undefined;
+    } catch (error) {
+      logger.error('Failed to get product by id', error, { productId });
+      return undefined;
     }
   }
 
@@ -145,7 +177,7 @@ export class StorageManager {
 
       // Save product with individual key (no priceHistory, no imageUrl)
       await chrome.storage.local.set({
-        [`${KEYS.PRODUCT_PREFIX}${product.id}`]: product,
+        [productKey(product.id)]: sanitizeProduct(product),
       });
 
       logger.info('Product added', { productId: product.id, title: product.title });
@@ -160,22 +192,32 @@ export class StorageManager {
    */
   static async updateProduct(productId: string, updates: Partial<TrackedProduct>): Promise<void> {
     try {
-      const key = `${KEYS.PRODUCT_PREFIX}${productId}`;
-      const result = await chrome.storage.local.get(key);
-      const product = result[key] as TrackedProduct | undefined;
-
-      if (!product) {
-        throw new Error('Product not found');
-      }
-
-      const updatedProduct = { ...product, ...updates };
-      await chrome.storage.local.set({ [key]: updatedProduct });
-
-      logger.debug('Product updated', { productId });
+      await this.updateProductById(productId, updates);
     } catch (error) {
       logger.error('Failed to update product', error);
       throw error;
     }
+  }
+
+  /**
+   * Update product by id (filters undefined values)
+   */
+  static async updateProductById(productId: string, updates: Partial<TrackedProduct>): Promise<void> {
+    const key = productKey(productId);
+    const result = await chrome.storage.local.get(key);
+    const product = result[key] as TrackedProduct | undefined;
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    const updatedProduct = sanitizeProduct({
+      ...product,
+      ...filterUndefinedValues(updates as Record<string, unknown>),
+    } as TrackedProduct);
+
+    await chrome.storage.local.set({ [key]: updatedProduct });
+    logger.debug('Product updated', { productId });
   }
 
   /**
@@ -373,6 +415,43 @@ export class StorageManager {
   static async trimAllPriceHistories(): Promise<void> {
     logger.info('trimAllPriceHistories is deprecated - price history moved to backend');
     // No-op: price history is no longer stored locally
+  }
+
+  /**
+   * Migrate legacy aggregated storage format into per-product records
+   */
+  static async migrateLegacyFormat(): Promise<void> {
+    try {
+      const legacyKey = STORAGE_KEYS.PRICE_TRACKER_DATA;
+      const legacyPayload = await chrome.storage.local.get(legacyKey);
+      const legacyData = legacyPayload[legacyKey] as StorageData | undefined;
+      if (!legacyData?.products?.length) {
+        return;
+      }
+
+      logger.info('Migrating legacy storage format', {
+        products: legacyData.products.length,
+      });
+
+      for (const legacyProduct of legacyData.products) {
+        const {
+          priceHistory,
+          imageUrl,
+          ...rest
+        } = legacyProduct as TrackedProduct & { priceHistory?: unknown; imageUrl?: unknown };
+
+        void priceHistory;
+        void imageUrl;
+
+        const sanitized = sanitizeProduct(rest as TrackedProduct);
+        await chrome.storage.local.set({ [productKey(sanitized.id)]: sanitized });
+      }
+
+      await chrome.storage.local.remove(legacyKey);
+      logger.info('Legacy storage migration completed');
+    } catch (error) {
+      logger.error('Failed to migrate legacy storage format', error);
+    }
   }
 
   /**

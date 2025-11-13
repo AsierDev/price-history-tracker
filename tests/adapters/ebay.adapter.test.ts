@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EbayAdapter } from '@adapters/implementations/ebay.adapter';
+import { setRuntimeEnv } from '../helpers/mocks';
 
-vi.stubEnv('AFFILIATE_EBAY_ID', 'test-epn-id');
+const EPN_ID = 'test-epn-id';
+vi.stubEnv('AFFILIATE_EBAY_ID', EPN_ID);
+setRuntimeEnv({ AFFILIATE_EBAY_ID: EPN_ID });
 
 describe('EbayAdapter', () => {
   let adapter: EbayAdapter;

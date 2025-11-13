@@ -2,6 +2,8 @@
  * Centralized logging utility with context
  */
 
+import { isProductionBuild } from '../config/env';
+
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 interface LogContext {
@@ -40,7 +42,7 @@ class Logger {
   }
 
   debug(message: string, context?: LogContext): void {
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProductionBuild()) {
       console.debug(this.formatMessage('debug', message, context));
     }
   }

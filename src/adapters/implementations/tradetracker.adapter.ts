@@ -28,7 +28,7 @@ export class TradeTrackerAdapter implements PriceAdapter {
 
   generateAffiliateUrl(url: string): string {
     // TODO: Implement TradeTracker URL generation
-    // const clientId = process.env.TRADETRACKER_CLIENT_ID;
+    // const clientId = ENV.TRADETRACKER_CLIENT_ID;
     // return `https://tc.tradetracker.net/?c=${clientId}&m=...&a=...&u=${encodeURIComponent(url)}`;
     return url;
   }

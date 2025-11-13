@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AliExpressAdapter } from '@adapters/implementations/aliexpress.adapter';
+import { setRuntimeEnv } from '../helpers/mocks';
 
-vi.stubEnv('AFFILIATE_ADMITAD_ID', 'test-admitad-id');
+const ADMITAD_ID = 'test-admitad-id';
+vi.stubEnv('AFFILIATE_ADMITAD_ID', ADMITAD_ID);
+setRuntimeEnv({ AFFILIATE_ADMITAD_ID: ADMITAD_ID });
 
 describe('AliExpressAdapter', () => {
   let adapter: AliExpressAdapter;

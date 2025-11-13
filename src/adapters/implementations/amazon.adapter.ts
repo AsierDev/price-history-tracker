@@ -9,6 +9,7 @@ import { addQueryParam } from '../../utils/urlUtils';
 import { logger } from '../../utils/logger';
 import { createDocument } from '../../utils/htmlParser';
 import { parsePrice, detectCurrency, isOutOfStock } from '../../utils/priceUtils';
+import { ENV } from '../../config/env';
 
 export class AmazonAdapter implements PriceAdapter {
   name = 'amazon';
@@ -78,7 +79,7 @@ export class AmazonAdapter implements PriceAdapter {
   }
 
   generateAffiliateUrl(url: string): string {
-    const affiliateTag = process.env.AFFILIATE_AMAZON_TAG || 'pricewatch-21';
+    const affiliateTag = ENV.AFFILIATE_AMAZON_TAG || 'pricewatch-21';
     return addQueryParam(url, 'tag', affiliateTag);
   }
 

@@ -27,20 +27,22 @@ npm run build
 ## ✨ Características
 
 ### 🎯 Core Features
-- ✅ **Soporte Multi-Plataforma**: Amazon, eBay, AliExpress (adapters específicos)
-- ✅ **Generic Adapter (Universal)**: Trackea **cualquier sitio web** mediante selección manual de precio
+- ✅ **Soporte Multi-Plataforma**: Amazon, eBay, AliExpress y 🇪🇸 **PcComponentes + MediaMarkt**
+- ✅ **Enhanced Generic Adapter (Whitelist)**: auto-extracción en +600 tiendas validadas (Fnac, Decathlon, Carrefour…)
+- ✅ **Generic Adapter (Manual)**: Trackea cualquier sitio mediante selección de precio
 - ✅ **Chequeo Automático**: Cada 6 horas
 - ✅ **Notificaciones**: Alertas cuando el precio baja >5%
 - ✅ **Gráficos de Historial**: Visualización temporal de precios con Chart.js
 - ✅ **Dark Mode**: Tema claro/oscuro (gráficos adaptativos)
 
 ### 🔧 Technical Features
-- ✅ **Price Picker Visual**: Selección interactiva de elementos de precio con preview
-- ✅ **Multi-Currency Support**: USD, EUR, GBP, JPY, CAD, AUD, etc.
-- ✅ **Rate Limiting**: Backoff exponencial para evitar baneos
-- ✅ **URLs de Afiliado**: Estructura lista para monetización
-- ✅ **Backend Firebase**: Historial compartido entre usuarios (anónimo)
-- ✅ **Storage Optimizado**: chrome.storage.local con keys divididas (sin límites de quota)
+- ✅ **Service Worker ESM** + Content Script con gating SPA-aware (`resolveSupportMode`)
+- ✅ **Extractor de metadatos (DOM real)**: JSON-LD → OG/Twitter → H1/title → fallback limpio
+- ✅ **Detector e-commerce**: señales combinadas + blacklist para no inyectar en Google/YouTube/etc.
+- ✅ **Price Picker Visual**: Estados `idle → extracting → added/error` y badge por tier
+- ✅ **Rate Limiting**: Backoff exponencial por dominio (1m → 5m → 30m → 2h)
+- ✅ **Storage híbrido**: chrome.storage.local minimalista + hooks para backend Firebase
+- ✅ **Afiliados seguros**: placeholders via `.env` + `esbuild.define`, sin secretos en runtime
 
 ## 📖 Documentación
 
@@ -53,9 +55,13 @@ npm run build
 
 ## 🏗️ Arquitectura
 
-### Patrón Adapter
+### Patrón Adapter + sistema de tiers
 
-Cada plataforma tiene su propio adapter que implementa `PriceAdapter`:
+1. **Tier 1 (Specific)** – adapters dedicados para Amazon, eBay, AliExpress, PcComponentes y MediaMarkt.
+2. **Tier 2 (Whitelist)** – `EnhancedGenericAdapter` aplica cascada `JSON-LD → OG/Twitter → Shopify/Presta/Woo/Magento → patrones genéricos`.
+3. **Tier 3 (Manual)** – `GenericAdapter` + Price Picker universal como red de seguridad.
+
+Cada adapter implementa `PriceAdapter`:
 
 ```typescript
 interface PriceAdapter {
@@ -193,21 +199,25 @@ This executes the same checks as GitHub Actions:
 
 ## 📝 Variables de Entorno
 
-Copiar `.env.example` a `.env`:
+1. Copia `.env.example` a `.env`.
+2. Rellena únicamente los IDs reales que vayas a usar (el resto pueden quedarse vacíos).
+3. Esbuild inyecta los valores mediante `define`, así que nada de `process.env` llega al runtime del worker.
 
 ```env
 # Affiliate IDs
 AFFILIATE_AMAZON_TAG=tu-tag-amazon
-AFFILIATE_ADMITAD_ID=tu-id-admitad
-AFFILIATE_EBAY_ID=tu-id-ebay
+AFFILIATE_EBAY_ID=
+AFFILIATE_ADMITAD_ID=
 
 # Firebase (opcional - ver docs/FIREBASE_SETUP.md)
-FIREBASE_API_KEY=your_api_key
-FIREBASE_PROJECT_ID=your_project_id
-# ... más variables Firebase
+FIREBASE_API_KEY=
+FIREBASE_PROJECT_ID=
+FIREBASE_STORAGE_BUCKET=
+FIREBASE_MESSAGING_SENDER_ID=
+FIREBASE_APP_ID=
 ```
 
-**Nota**: La extensión funciona sin Firebase (modo local-only), pero el historial compartido requiere configuración Firebase.
+> ℹ️ Puedes dejar Firebase vacío y la extensión funcionará en modo local-only. Los hooks del backend sólo se activan cuando la configuración está completa.
 
 ## 🎯 Roadmap
 

@@ -6,6 +6,7 @@
 import type { PriceAdapter } from '../types';
 import type { ExtractedProductData } from '../../core/types';
 import { logger } from '../../utils/logger';
+import { ENV } from '../../config/env';
 import { createDocument } from '../../utils/htmlParser';
 import { parsePrice, detectCurrency, isOutOfStock } from '../../utils/priceUtils';
 
@@ -78,7 +79,7 @@ export class EbayAdapter implements PriceAdapter {
   generateAffiliateUrl(url: string): string {
     // eBay Partner Network integration (passthrough for MVP)
     // TODO: Implement full EPN URL generation with campaign ID
-    const epnId = process.env.AFFILIATE_EBAY_ID;
+    const epnId = ENV.AFFILIATE_EBAY_ID;
     if (epnId) {
       // Future: Generate proper EPN URL
       // return `https://rover.ebay.com/rover/1/.../${epnId}?url=${encodeURIComponent(url)}`;

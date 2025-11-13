@@ -10,17 +10,16 @@ const isProduction = mode === 'production';
 const isWatch = mode === 'watch';
 
 const envReplacements = {
-  'process.env.NODE_ENV': JSON.stringify(mode),
-  'process.env.AFFILIATE_AMAZON_TAG': JSON.stringify(process.env.AFFILIATE_AMAZON_TAG ?? ''),
-  'process.env.AFFILIATE_EBAY_ID': JSON.stringify(process.env.AFFILIATE_EBAY_ID ?? ''),
-  'process.env.AFFILIATE_ADMITAD_ID': JSON.stringify(process.env.AFFILIATE_ADMITAD_ID ?? ''),
-  // Firebase configuration
-  'process.env.FIREBASE_API_KEY': JSON.stringify(process.env.FIREBASE_API_KEY ?? ''),
-  'process.env.FIREBASE_AUTH_DOMAIN': JSON.stringify(process.env.FIREBASE_AUTH_DOMAIN ?? ''),
-  'process.env.FIREBASE_PROJECT_ID': JSON.stringify(process.env.FIREBASE_PROJECT_ID ?? ''),
-  'process.env.FIREBASE_STORAGE_BUCKET': JSON.stringify(process.env.FIREBASE_STORAGE_BUCKET ?? ''),
-  'process.env.FIREBASE_MESSAGING_SENDER_ID': JSON.stringify(process.env.FIREBASE_MESSAGING_SENDER_ID ?? ''),
-  'process.env.FIREBASE_APP_ID': JSON.stringify(process.env.FIREBASE_APP_ID ?? ''),
+  __NODE_ENV__: JSON.stringify(mode),
+  __AFFILIATE_AMAZON_TAG__: JSON.stringify(process.env.AFFILIATE_AMAZON_TAG ?? ''),
+  __AFFILIATE_EBAY_ID__: JSON.stringify(process.env.AFFILIATE_EBAY_ID ?? ''),
+  __AFFILIATE_ADMITAD_ID__: JSON.stringify(process.env.AFFILIATE_ADMITAD_ID ?? ''),
+  __FIREBASE_API_KEY__: JSON.stringify(process.env.FIREBASE_API_KEY ?? ''),
+  __FIREBASE_AUTH_DOMAIN__: JSON.stringify(process.env.FIREBASE_AUTH_DOMAIN ?? ''),
+  __FIREBASE_PROJECT_ID__: JSON.stringify(process.env.FIREBASE_PROJECT_ID ?? ''),
+  __FIREBASE_STORAGE_BUCKET__: JSON.stringify(process.env.FIREBASE_STORAGE_BUCKET ?? ''),
+  __FIREBASE_MESSAGING_SENDER_ID__: JSON.stringify(process.env.FIREBASE_MESSAGING_SENDER_ID ?? ''),
+  __FIREBASE_APP_ID__: JSON.stringify(process.env.FIREBASE_APP_ID ?? ''),
 };
 
 const buildOptions = {

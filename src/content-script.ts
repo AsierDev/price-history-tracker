@@ -1,371 +1,449 @@
 /**
- * Content script - Injects "Track Price" button on product pages
+ * Content script - injects the Track Price button and decides support mode per page
  */
 
 import type { ExtractedProductData } from './core/types';
-import { logger } from './utils/logger';
-import { getAdapterForUrl, isUrlSupported, requiresManualSelection } from './adapters/registry';
+import type { ExtractedMetadata } from './utils/metadataExtractor';
+import { getAdapterForUrl, getBadgeInfo } from './adapters/registry';
 import { PricePicker } from './content-script/pricePicker';
-import { isLikelyEcommerceSite } from './utils/ecommerceDetector';
+import { resolveSupportMode, type SupportMode } from './content-script/supportMode';
+import { logger } from './utils/logger';
 import { extractMetadata } from './utils/metadataExtractor';
 
-// Types for messages sent from content script
+type ButtonState = 'idle' | 'extracting' | 'selecting' | 'added' | 'error';
+
+type MetadataPayload = {
+  title: string;
+  imageUrl?: string;
+  storeName: string;
+};
+
 type ContentScriptMessage =
-  | { action: 'ping' }
-  | { action: 'trackProduct'; url: string; productData: ExtractedProductData }
+  | {
+      action: 'trackProduct';
+      url: string;
+      productData: ExtractedProductData;
+      metadata: MetadataPayload;
+      supportMode: SupportMode;
+    }
   | {
       action: 'trackProductManual';
       url: string;
       priceElement: { selector: string; text: string };
-      metadata: { title: string; imageUrl?: string; storeName: string };
-    };
+      metadata: MetadataPayload;
+    }
+  | { action: 'ping' };
 
 type MessageResponse = { success: boolean; error?: string; pong?: boolean };
 
-// Global price picker instance
+const PRIMARY_GRADIENT = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+const SUCCESS_GRADIENT = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+const ERROR_GRADIENT = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+
 const pricePicker = new PricePicker();
 
+let trackButton: HTMLButtonElement | null = null;
+let buttonLabelEl: HTMLSpanElement | null = null;
+let buttonBadgeEl: HTMLSpanElement | null = null;
+let currentMode: SupportMode = 'none';
+let lastUrl = window.location.href;
+
 /**
- * Send message to service worker with retry logic for "Extension context invalidated"
+ * Entry point
+ */
+function initContentScript() {
+  evaluateSupportMode(true);
+  observeSpaNavigation();
+  sendPingToServiceWorker();
+
+  logger.debug('Content script initialized', {
+    url: window.location.href,
+    mode: currentMode,
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initContentScript, { once: true });
+} else {
+  initContentScript();
+}
+
+function evaluateSupportMode(force = false) {
+  const url = window.location.href;
+  const nextMode = resolveSupportMode(url, document);
+
+  logger.info('Support mode evaluation', {
+    url,
+    nextMode,
+    previousMode: currentMode,
+  });
+
+  if (!force && nextMode === currentMode) {
+    updateButtonBadge();
+    return;
+  }
+
+  currentMode = nextMode;
+
+  if (currentMode === 'none') {
+    removeTrackButton();
+    return;
+  }
+
+  ensureTrackButton();
+  setButtonState('idle');
+  updateButtonBadge();
+}
+
+/**
+ * Create button if needed
+ */
+function ensureTrackButton() {
+  if (trackButton) {
+    return;
+  }
+
+  trackButton = document.createElement('button');
+  trackButton.id = 'price-tracker-btn';
+  trackButton.type = 'button';
+  trackButton.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 2147483645;
+    padding: 14px 20px;
+    background: ${PRIMARY_GRADIENT};
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+  `;
+
+  buttonLabelEl = document.createElement('span');
+  buttonLabelEl.className = 'pht-label';
+  buttonLabelEl.textContent = labelForCurrentMode();
+
+  buttonBadgeEl = document.createElement('span');
+  buttonBadgeEl.className = 'pht-badge';
+  buttonBadgeEl.style.cssText = `
+    background: rgba(255, 255, 255, 0.15);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  `;
+
+  trackButton.addEventListener('mouseenter', () => {
+    if (trackButton) {
+      trackButton.style.transform = 'translateY(-2px)';
+      trackButton.style.boxShadow = '0 10px 22px rgba(0, 0, 0, 0.25)';
+    }
+  });
+
+  trackButton.addEventListener('mouseleave', () => {
+    if (trackButton) {
+      trackButton.style.transform = 'translateY(0)';
+      trackButton.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.2)';
+    }
+  });
+
+  trackButton.addEventListener('click', () => {
+    void handleTrackPrice();
+  });
+
+  trackButton.appendChild(buttonLabelEl);
+  trackButton.appendChild(buttonBadgeEl);
+  document.body.appendChild(trackButton);
+}
+
+function removeTrackButton() {
+  if (trackButton) {
+    trackButton.remove();
+  }
+  trackButton = null;
+  buttonLabelEl = null;
+  buttonBadgeEl = null;
+}
+
+function updateButtonBadge() {
+  if (!trackButton || !buttonBadgeEl) return;
+
+  if (currentMode === 'manual') {
+    buttonBadgeEl.textContent = '📍 Manual';
+  } else {
+    const badgeInfo = getBadgeInfo(window.location.href);
+    buttonBadgeEl.textContent = `${badgeInfo.emoji} ${badgeInfo.text}`;
+  }
+
+  trackButton.dataset.mode = currentMode;
+}
+
+function labelForCurrentMode(): string {
+  if (currentMode === 'manual') {
+    return 'Seleccionar precio';
+  }
+  if (currentMode === 'whitelist') {
+    return 'Auto (whitelist)';
+  }
+  if (currentMode === 'specific') {
+    return 'Auto (tienda)';
+  }
+  return 'Seguir precio';
+}
+
+function setButtonState(state: ButtonState, message?: string) {
+  if (!trackButton || !buttonLabelEl) return;
+
+  switch (state) {
+    case 'idle':
+      trackButton.disabled = false;
+      trackButton.style.opacity = '1';
+      trackButton.style.background = PRIMARY_GRADIENT;
+      buttonLabelEl.textContent = labelForCurrentMode();
+      break;
+    case 'extracting':
+      trackButton.disabled = true;
+      trackButton.style.opacity = '0.85';
+      buttonLabelEl.textContent = message ?? 'Extrayendo precio...';
+      break;
+    case 'selecting':
+      trackButton.disabled = true;
+      trackButton.style.opacity = '0.85';
+      buttonLabelEl.textContent = message ?? 'Haz clic sobre el precio…';
+      break;
+    case 'added':
+      trackButton.disabled = true;
+      trackButton.style.background = SUCCESS_GRADIENT;
+      buttonLabelEl.textContent = message ?? 'Producto añadido ✅';
+      setTimeout(() => setButtonState('idle'), 2000);
+      break;
+    case 'error':
+      trackButton.disabled = true;
+      trackButton.style.background = ERROR_GRADIENT;
+      buttonLabelEl.textContent = message ?? 'No se pudo añadir';
+      setTimeout(() => setButtonState('idle'), 2500);
+      break;
+  }
+}
+
+/**
+ * Handle button click according to support mode
+ */
+async function handleTrackPrice() {
+  if (currentMode === 'none') {
+    logger.warn('Track button clicked but mode is none');
+    return;
+  }
+
+  try {
+    if (currentMode === 'manual') {
+      await handleManualTracking();
+      return;
+    }
+
+    await handleAutomaticTracking();
+  } catch (error) {
+    logger.error('Failed to track product', error);
+    setButtonState('error', error instanceof Error ? error.message : 'Error desconocido');
+  }
+}
+
+/**
+ * Automatic extraction flow
+ */
+async function handleAutomaticTracking() {
+  setButtonState('extracting', 'Extrayendo datos…');
+
+  const adapter = getAdapterForUrl(window.location.href);
+
+  if (!adapter) {
+    logger.warn('No adapter resolved during automatic tracking');
+    setButtonState('error', 'Sitio no soportado');
+    return;
+  }
+
+  if (adapter.requiresManualSelection) {
+    logger.info('Adapter requires manual selection; switching flow');
+    currentMode = 'manual';
+    updateButtonBadge();
+    await handleManualTracking();
+    return;
+  }
+
+  let productData: ExtractedProductData;
+  try {
+    productData = await adapter.extractData(document.documentElement.outerHTML);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'AUTO_EXTRACT_FAILED') {
+      logger.warn('Auto extraction failed, falling back to manual selector');
+      currentMode = 'manual';
+      updateButtonBadge();
+      await handleManualTracking();
+      return;
+    }
+    throw error;
+  }
+
+  if (!productData.available) {
+    logger.warn('Adapter reported product unavailable', { url: window.location.href });
+    setButtonState('error', productData.error ?? 'Producto no disponible');
+    return;
+  }
+
+  const metadata = buildMetadataPayload();
+
+  const response = await sendMessageWithRetry({
+    action: 'trackProduct',
+    url: window.location.href,
+    productData,
+    metadata,
+    supportMode: currentMode,
+  });
+
+  if (response.success) {
+    setButtonState('added', 'Producto añadido ✅');
+  } else {
+    setButtonState('error', response.error ?? 'No se pudo añadir');
+  }
+}
+
+/**
+ * Manual selector flow
+ */
+async function handleManualTracking(): Promise<void> {
+  setButtonState('selecting');
+
+  const result = await pricePicker.activate();
+
+  if (!result || !result.success) {
+    logger.info('Manual selection cancelled');
+    setButtonState('idle');
+    return;
+  }
+
+  setButtonState('extracting', 'Procesando selección…');
+
+  const metadata = buildMetadataPayload();
+
+  const response = await sendMessageWithRetry({
+    action: 'trackProductManual',
+    url: window.location.href,
+    priceElement: {
+      selector: result.selector,
+      text: result.text,
+    },
+    metadata,
+  });
+
+  if (response.success) {
+    setButtonState('added', 'Producto añadido ✅');
+  } else {
+    setButtonState('error', response.error ?? 'No se pudo añadir');
+  }
+}
+
+function buildMetadataPayload(): MetadataPayload {
+  const metadata: ExtractedMetadata = extractMetadata(document, window.location.href);
+  return {
+    title: metadata.title,
+    imageUrl: metadata.imageUrl,
+    storeName: metadata.storeName,
+  };
+}
+
+/**
+ * Message helper with retry logic to wake the service worker
  */
 async function sendMessageWithRetry(message: ContentScriptMessage, maxRetries = 3): Promise<MessageResponse> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      logger.debug(`Sending message (attempt ${attempt}/${maxRetries})`, { action: message.action });
-
-      // Try to send the message
       const response = await chrome.runtime.sendMessage(message);
       return response;
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.warn(`Message attempt ${attempt} failed`, { error: errorMessage, action: message.action });
 
-      // If it's "Extension context invalidated", try to wake up service worker
-      if (errorMessage.includes('Extension context invalidated')) {
-        if (attempt < maxRetries) {
-          // Try to wake up the service worker by sending a simple ping
-          try {
-            await chrome.runtime.sendMessage({ action: 'ping' });
-          } catch (pingError) {
-            // Ignore ping errors, just wait
-          }
-
-          // Wait before retrying (exponential backoff)
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          logger.debug(`Waiting ${delay}ms before retry`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
+      if (!errorMessage.includes('Extension context invalidated') || attempt === maxRetries) {
+        throw error;
       }
 
-      // If it's not "Extension context invalidated" or we've exhausted retries, throw
-      throw error;
+      try {
+        await chrome.runtime.sendMessage({ action: 'ping' });
+      } catch {
+        // Ignore ping errors
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
-  throw new Error('Failed to send message after all retries');
-}
-
-// Check if we're on a supported product page
-const currentUrl = window.location.href;
-const isSupported = isUrlSupported(currentUrl);
-const needsManualSelection = requiresManualSelection(currentUrl);
-
-// For sites without specific adapter, check if it's likely an e-commerce site
-let shouldShowButton = isSupported;
-
-if (!isSupported && needsManualSelection) {
-  // Run e-commerce detection
-  const isEcommerce = isLikelyEcommerceSite(document, currentUrl);
-  shouldShowButton = isEcommerce;
-  
-  logger.info('E-commerce detection result', {
-    url: currentUrl,
-    isEcommerce,
-    willShowButton: shouldShowButton,
-  });
-}
-
-// Inject button if supported or detected as e-commerce
-if (shouldShowButton) {
-  logger.info('Product page detected', {
-    url: currentUrl,
-    hasSpecificAdapter: isSupported,
-    needsManual: needsManualSelection,
-  });
-  injectTrackButton();
+  throw new Error('Failed to reach service worker');
 }
 
 /**
- * Inject the "Track Price" button into the page
+ * SPA navigation watcher
  */
-function injectTrackButton() {
-  // Avoid duplicate buttons
-  if (document.getElementById('price-tracker-btn')) {
-    return;
-  }
-
-  // Create button
-  const button = document.createElement('button');
-  button.id = 'price-tracker-btn';
-  
-  // Check if manual selection is needed
-  const needsManual = requiresManualSelection(window.location.href);
-  button.innerHTML = needsManual ? '📍 Track Price (Manual)' : '💰 Track Price';
-  button.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 999999;
-    padding: 12px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 24px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: all 0.3s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
-
-  // Hover effects
-  button.addEventListener('mouseenter', () => {
-    button.style.transform = 'translateY(-2px)';
-    button.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+function observeSpaNavigation() {
+  const observer = new MutationObserver(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      setTimeout(() => evaluateSupportMode(true), 150);
+    }
   });
 
-  button.addEventListener('mouseleave', () => {
-    button.style.transform = 'translateY(0)';
-    button.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-  });
-
-  // Click handler
-  button.addEventListener('click', handleTrackPrice);
-
-  // Inject into page
-  document.body.appendChild(button);
-  logger.debug('Track button injected');
-}
-
-/**
- * Handle "Track Price" button click
- */
-async function handleTrackPrice() {
-  const button = document.getElementById('price-tracker-btn') as HTMLButtonElement | null;
-  if (!button) return;
-
-  const needsManual = requiresManualSelection(window.location.href);
-
-  const resetButton = () => {
-    button.textContent = needsManual ? '📍 Track Price (Manual)' : '💰 Track Price';
-    button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    button.disabled = false;
-    button.style.opacity = '1';
-  };
-
-  const showError = (message: string) => {
-    button.textContent = '❌ Failed';
-    button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-    setTimeout(() => {
-      resetButton();
-    }, 2000);
-    if (message) {
-      alert(`Failed to track product: ${message}`);
-    }
-  };
-
-  try {
-    button.textContent = '⏳ Adding...';
-    button.disabled = true;
-    button.style.opacity = '0.7';
-
-    const adapter = getAdapterForUrl(window.location.href);
-    if (!adapter) {
-      logger.warn('No adapter available for current URL', { url: window.location.href });
-      showError('Unsupported website');
-      return;
-    }
-
-    // If adapter requires manual selection, activate price picker
-    if (adapter.requiresManualSelection) {
-      button.textContent = '👆 Select price on page...';
-      await handleManualTracking(button, resetButton, showError);
-      return;
-    }
-
-    // Automatic extraction for specific adapters
-    const productData = await adapter.extractData(document.documentElement.outerHTML);
-    if (!productData.available) {
-      logger.warn('Product not available during extraction', {
-        url: window.location.href,
-        error: productData.error,
-      });
-      showError(productData.error ?? 'Product not available');
-      return;
-    }
-
-    // Send message to service worker with retry logic for "Extension context invalidated"
-    const response = await sendMessageWithRetry({
-      action: 'trackProduct',
-      url: window.location.href,
-      productData,
-    });
-
-    if (response.success) {
-      button.textContent = '✅ Tracked!';
-      button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-
-      setTimeout(() => {
-        resetButton();
-      }, 2000);
-    } else {
-      showError(response.error ?? 'Unknown error');
-    }
-  } catch (error) {
-    logger.error('Failed to track product', error);
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    // Provide user-friendly error messages for common issues
-    let userMessage = errorMessage;
-    if (errorMessage.includes('Extension context invalidated')) {
-      userMessage = 'Extension temporarily unavailable. Please try again in a moment.';
-    } else if (errorMessage.includes('Maximum')) {
-      userMessage = 'Maximum number of tracked products reached. Please remove some products first.';
-    }
-
-    showError(userMessage);
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 }
 
 /**
- * Handle manual price tracking (price picker mode)
+ * Allow popup to trigger manual selector
  */
-async function handleManualTracking(
-  button: HTMLButtonElement,
-  resetButton: () => void,
-  showError: (msg: string) => void
-) {
-  try {
-    // Activate price picker
-    const result = await pricePicker.activate();
-
-    if (!result || !result.success) {
-      logger.info('Price picker cancelled or failed');
-      resetButton();
-      return;
-    }
-
-    // User selected a price element
-    button.textContent = '⏳ Saving...';
-
-    // Extract metadata from current page
-    const metadata = extractMetadata(document, window.location.href);
-    logger.debug('Metadata extracted in content script', {
-      title: metadata.title,
-      hasImage: !!metadata.imageUrl,
-      storeName: metadata.storeName,
-    });
-
-    const response = await sendMessageWithRetry({
-      action: 'trackProductManual',
-      url: window.location.href,
-      priceElement: {
-        selector: result.selector,
-        text: result.text,
-      },
-      metadata,
-    });
-
-    if (response.success) {
-      button.textContent = '✅ Tracked!';
-      button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-
-      setTimeout(() => {
-        resetButton();
-      }, 2000);
-    } else {
-      showError(response.error ?? 'Unknown error');
-    }
-  } catch (error) {
-    logger.error('Manual tracking failed', error);
-    showError(error instanceof Error ? error.message : 'Failed to track price');
-  }
-}
-
-// Listen for messages from popup or service worker
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'enablePricePicker') {
-    logger.info('Enabling price picker from external trigger');
-    handleManualTracking(
-      document.getElementById('price-tracker-btn') as HTMLButtonElement,
-      () => {},
-      (msg) => alert(`Failed: ${msg}`)
-    );
-    sendResponse({ success: true });
+    evaluateSupportMode(true);
+    handleManualTracking()
+      .then(() => sendResponse({ success: true }))
+      .catch(error => {
+        logger.error('Manual tracking triggered via message failed', error);
+        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+      });
     return true;
   }
-  
+
   if (message.action === 'detectEcommerce') {
-    logger.info('E-commerce detection requested from popup');
-    const isEcommerce = isLikelyEcommerceSite(document, window.location.href);
-    sendResponse({ isEcommerce });
+    const mode = resolveSupportMode(window.location.href, document);
+    sendResponse({
+      isEcommerce: mode !== 'none',
+      mode,
+    });
     return true;
   }
-  
-  // Return false for unhandled messages
+
   return false;
 });
 
-// Listen for URL changes (SPA navigation)
-let lastUrl = window.location.href;
-new MutationObserver(() => {
-  const currentUrl = window.location.href;
-  if (currentUrl !== lastUrl) {
-    lastUrl = currentUrl;
-    
-    // Remove old button
-    const oldButton = document.getElementById('price-tracker-btn');
-    if (oldButton) {
-      oldButton.remove();
-    }
-
-    // Check if new URL is supported or needs manual selection
-    const isSupported = isUrlSupported(currentUrl);
-    const needsManual = requiresManualSelection(currentUrl);
-    
-    let shouldShow = isSupported;
-    
-    if (!isSupported && needsManual) {
-      // Run e-commerce detection for new URL
-      const isEcommerce = isLikelyEcommerceSite(document, currentUrl);
-      shouldShow = isEcommerce;
-    }
-    
-    if (shouldShow) {
-      setTimeout(() => injectTrackButton(), 1000);
-    }
-  }
-}).observe(document.body, { childList: true, subtree: true });
-
-// Send initial ping to wake up service worker
+/**
+ * Wake the service worker on load
+ */
 async function sendPingToServiceWorker() {
   try {
     await chrome.runtime.sendMessage({ action: 'ping' });
   } catch (error) {
-    logger.warn('Failed to send initial ping to service worker', { error: error instanceof Error ? error.message : String(error) });
+    logger.warn('Failed to send initial ping to service worker', {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
-
-// Initialize content script
-sendPingToServiceWorker();
-
-// Log initialization
-logger.debug('Content script initialized', {
-  url: window.location.href,
-  hasSpecificAdapter: isUrlSupported(window.location.href),
-  needsManualSelection: requiresManualSelection(window.location.href),
-});

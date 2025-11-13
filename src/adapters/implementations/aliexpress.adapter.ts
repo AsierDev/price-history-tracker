@@ -8,6 +8,7 @@ import type { ExtractedProductData } from '../../core/types';
 import { logger } from '../../utils/logger';
 import { createDocument } from '../../utils/htmlParser';
 import { parsePrice, detectCurrency, looksLikePrice } from '../../utils/priceUtils';
+import { ENV } from '../../config/env';
 
 export class AliExpressAdapter implements PriceAdapter {
   name = 'aliexpress';
@@ -73,7 +74,7 @@ export class AliExpressAdapter implements PriceAdapter {
   }
 
   generateAffiliateUrl(url: string): string {
-    const admitadId = process.env.AFFILIATE_ADMITAD_ID;
+    const admitadId = ENV.AFFILIATE_ADMITAD_ID;
     if (admitadId) {
       return `https://admitad.com/g/${admitadId}/?ulp=${encodeURIComponent(url)}`;
     }

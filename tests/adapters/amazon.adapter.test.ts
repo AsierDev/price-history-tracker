@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AmazonAdapter } from '@adapters/implementations/amazon.adapter';
+import { setRuntimeEnv } from '../helpers/mocks';
 
-vi.stubEnv('AFFILIATE_AMAZON_TAG', 'pricewatch-test-21');
+const AMAZON_TAG = 'pricewatch-test-21';
+vi.stubEnv('AFFILIATE_AMAZON_TAG', AMAZON_TAG);
+setRuntimeEnv({ AFFILIATE_AMAZON_TAG: AMAZON_TAG });
 
 describe('AmazonAdapter', () => {
   let adapter: AmazonAdapter;

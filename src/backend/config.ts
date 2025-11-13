@@ -9,15 +9,16 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { logger } from '../utils/logger';
+import { ENV } from '../config/env';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || '',
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.FIREBASE_APP_ID || '',
+  apiKey: ENV.FIREBASE.apiKey,
+  authDomain: ENV.FIREBASE.authDomain,
+  projectId: ENV.FIREBASE.projectId,
+  storageBucket: ENV.FIREBASE.storageBucket,
+  messagingSenderId: ENV.FIREBASE.messagingSenderId,
+  appId: ENV.FIREBASE.appId,
 };
 
 let app: FirebaseApp | null = null;
