@@ -53,6 +53,7 @@ export function isOutOfStock(text: string): boolean {
   const outOfStockKeywords = [
     'no disponible',
     'out of stock',
+    'outofstock',
     'agotado',
     'not available',
     'sold out',
