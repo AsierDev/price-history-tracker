@@ -109,11 +109,22 @@ function renderProducts() {
 }
 
 // Create product card HTML
+function formatAdapterLabel(adapter: string): string {
+  if (adapter === 'generic') {
+    return 'Manual';
+  }
+  return adapter
+    .split(/[-_]/)
+    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
 function createProductCard(product: TrackedProduct): string {
   const priceChange = product.currentPrice - product.initialPrice;
   const percentChange = ((priceChange / product.initialPrice) * 100).toFixed(1);
   const changeClass = priceChange < 0 ? 'positive' : priceChange > 0 ? 'negative' : '';
   const changeSymbol = priceChange < 0 ? '↓' : priceChange > 0 ? '↑' : '=';
+  const displayStore = product.storeName || formatAdapterLabel(product.adapter);
 
   return `
     <div class="product-card">
@@ -126,7 +137,7 @@ function createProductCard(product: TrackedProduct): string {
           ${priceChange !== 0 ? `<span class="price-change ${changeClass}">${changeSymbol} ${Math.abs(parseFloat(percentChange))}%</span>` : ''}
         </div>
         <div class="product-meta">
-          Added ${formatTimestamp(product.addedAt)} • ${product.adapter === 'generic' ? (product.storeName || 'generic') : product.adapter}
+          Added ${formatTimestamp(product.addedAt)} • ${displayStore}
           ${product.adapter === 'generic' && product.customSelector ? '<span class="selector-badge" title="Custom selector: ' + product.customSelector + '">🎯</span>' : ''}
         </div>
       </div>
