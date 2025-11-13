@@ -335,7 +335,7 @@ export class PcComponentesAdapter implements PriceAdapter {
     return null;
   }
 
-  private normalizeOffers(offers: unknown): { price?: number | string; priceCurrency?: string; availability?: string } {
+  private normalizeOffers(offers: unknown): { price?: number | string; priceCurrency?: string; availability?: string; url?: string } {
     if (Array.isArray(offers)) {
       return (offers[0] ?? {}) as Record<string, string | number>;
     }
@@ -365,7 +365,7 @@ export class PcComponentesAdapter implements PriceAdapter {
     return 0;
   }
 
-  private buildProductFromNode(node: Record<string, any>): ExtractedProductData | null {
+  private buildProductFromNode(node: Record<string, unknown>): ExtractedProductData | null {
     const offers = this.normalizeOffers(node.offers);
     const price = this.parseJsonPrice(offers?.price ?? node.price);
     if (!price) {
@@ -382,20 +382,21 @@ export class PcComponentesAdapter implements PriceAdapter {
           : undefined;
 
     return {
-      title: node.name || 'Producto',
+      title: typeof node.name === 'string' ? node.name : 'Producto',
       price,
-      currency,
+      currency: typeof currency === 'string' ? currency : 'EUR',
       imageUrl: image,
       available: availabilityFlag,
     };
   }
 
-  private matchesCanonical(node: Record<string, any>, canonicalUrl: string): boolean {
+  private matchesCanonical(node: Record<string, unknown>, canonicalUrl: string): boolean {
     if (!canonicalUrl) {
       return false;
     }
 
-    const urlCandidates = [node.url, node['@id'], node.offers?.url];
+    const offers = this.normalizeOffers(node.offers);
+    const urlCandidates = [node.url, node['@id'], offers.url];
     return urlCandidates.some(candidate => {
       if (typeof candidate !== 'string') return false;
       try {
