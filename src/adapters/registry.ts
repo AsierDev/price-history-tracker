@@ -10,6 +10,7 @@ import { TradeTrackerAdapter } from './implementations/tradetracker.adapter';
 import { BelboonAdapter } from './implementations/belboon.adapter';
 import { AwinAdapter } from './implementations/awin.adapter';
 import { PcComponentesAdapter } from './implementations/pccomponentes.adapter';
+import { ElCorteInglesAdapter } from './implementations/elcorteingles.adapter';
 import { MediaMarktAdapter } from './implementations/mediamarkt.adapter';
 import { genericAdapter } from './implementations/generic.adapter';
 import { createEnhancedGenericAdapter } from './implementations/enhanced-generic.adapter';
@@ -23,6 +24,7 @@ const specificAdapters: PriceAdapter[] = [
   new EbayAdapter(),
   new AliExpressAdapter(),
   new PcComponentesAdapter(),
+  new ElCorteInglesAdapter(),
   new MediaMarktAdapter(),
   new TradeTrackerAdapter(),
   new BelboonAdapter(),

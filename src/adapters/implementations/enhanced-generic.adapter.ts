@@ -11,6 +11,14 @@ import { createDocument } from '../../utils/htmlParser';
 import { parsePrice, detectCurrency } from '../../utils/priceUtils';
 import { extractTitle, extractImage } from '../../utils/metadataExtractor';
 
+type JsonObject = Record<string, unknown>;
+type PriceCandidate = {
+  price: number;
+  currency: string;
+  element: HTMLElement;
+  score: number;
+};
+
 export class EnhancedGenericAdapter implements PriceAdapter {
   name = 'enhanced-generic';
   affiliateNetworkId = 'none';
@@ -156,51 +164,57 @@ export class EnhancedGenericAdapter implements PriceAdapter {
    */
   private async tryJsonLdExtraction(doc: Document): Promise<ExtractedProductData | null> {
     try {
-      const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-      
+      const scripts = doc.querySelectorAll(
+        'script[type="application/ld+json"], script[type="application/json+ld"]'
+      );
+
       for (const script of Array.from(scripts)) {
+        let parsed: unknown;
         try {
-          const data = JSON.parse(script.textContent || '');
-          
-          // Handle both single object and @graph array
-          const products = Array.isArray(data) ? data : 
-                          data['@graph'] ? (Array.isArray(data['@graph']) ? data['@graph'] : [data['@graph']]) :
-                          [data];
-
-          for (const product of products) {
-            if (product['@type'] === 'Product' || product['@type'] === 'Offer' || product['@type'] === 'AggregateOffer') {
-              const title = product.name || product.title;
-              let price = 0;
-              let currency = 'EUR';
-
-              // Extract price from different structures
-              if (product.offers) {
-                const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
-                price = parseFloat(offers.price || offers.priceSpecification?.price || 0);
-                currency = offers.priceCurrency || offers.priceSpecification?.priceCurrency || 'EUR';
-              } else if (product.price) {
-                price = parseFloat(product.price);
-                currency = product.priceCurrency || 'EUR';
-              }
-
-              if (title && price > 0) {
-                const imageUrl = product.image || product.imageUrl;
-                
-                logger.debug('JSON-LD product found', { title, price, currency });
-                
-                return {
-                  title: typeof title === 'string' ? title : String(title),
-                  price,
-                  currency,
-                  imageUrl: typeof imageUrl === 'string' ? imageUrl : undefined,
-                  available: true,
-                };
-              }
-            }
-          }
+          parsed = JSON.parse(script.textContent || '');
         } catch (parseError) {
           logger.debug('Failed to parse JSON-LD script', { error: parseError });
-          continue; // Try next script
+          continue;
+        }
+
+        const nodes = this.flattenJsonLdPayload(parsed);
+        for (const node of nodes) {
+          if (!this.isProductNode(node)) {
+            continue;
+          }
+
+          const title = this.normalizeTitle(node) || this.siteInfo?.name || 'Producto';
+          const offers = this.normalizeObjectArray(node['offers']);
+          const offerCandidates = offers.length > 0 ? offers : [node];
+
+          for (const offer of offerCandidates) {
+            const price = this.extractPriceFromNode(offer);
+            if (!price) {
+              continue;
+            }
+
+            const currency =
+              this.extractCurrencyFromNode(offer) ||
+              this.extractCurrencyFromNode(node) ||
+              'EUR';
+
+            const image = this.extractImageFromNode(node);
+
+            logger.debug('JSON-LD product found', {
+              title,
+              price,
+              currency,
+              source: 'json-ld',
+            });
+
+            return {
+              title,
+              price,
+              currency,
+              imageUrl: image,
+              available: true,
+            };
+          }
         }
       }
 
@@ -274,34 +288,41 @@ export class EnhancedGenericAdapter implements PriceAdapter {
         ['.variant-price', '.current-variant-price'],
       ];
 
+      let bestCandidate: PriceCandidate | null = null;
+
       for (const selectors of platformSelectors) {
         for (const selector of selectors) {
-          const element = doc.querySelector(selector);
-          if (element?.textContent) {
-            const text = element.textContent.trim();
-            const price = parsePrice(text);
-            
-            if (price > 0) {
-              const currency = detectCurrency(text) || 'EUR';
-              const title = extractTitle(doc);
-              const imageUrl = extractImage(doc, element as HTMLElement);
-              
-              logger.debug('Platform selector extraction successful', { 
-                selector, 
-                title: title?.substring(0, 50), 
-                price 
-              });
-              
-              return {
-                title: title || 'Product',
-                price,
-                currency,
-                imageUrl,
-                available: true,
-              };
+          const elements = doc.querySelectorAll(selector);
+          for (const element of Array.from(elements)) {
+            const candidate = this.buildPriceCandidate(element);
+            if (!candidate) {
+              continue;
+            }
+
+            if (!bestCandidate || candidate.score > bestCandidate.score) {
+              bestCandidate = candidate;
             }
           }
         }
+      }
+
+      if (bestCandidate) {
+        const title = extractTitle(doc);
+        const imageUrl = extractImage(doc, bestCandidate.element);
+
+        logger.debug('Platform selector extraction successful', {
+          selector: bestCandidate.element.tagName.toLowerCase(),
+          price: bestCandidate.price,
+          score: bestCandidate.score,
+        });
+
+        return {
+          title: title || 'Product',
+          price: bestCandidate.price,
+          currency: bestCandidate.currency,
+          imageUrl,
+          available: true,
+        };
       }
 
       return null;
@@ -332,33 +353,44 @@ export class EnhancedGenericAdapter implements PriceAdapter {
         '.main-price',
       ];
 
+      let bestCandidate: PriceCandidate | null = null;
+
       for (const selector of genericSelectors) {
         const elements = doc.querySelectorAll(selector);
         
         for (const element of Array.from(elements)) {
-          const text = element.textContent?.trim() || '';
-          const price = parsePrice(text);
-          
-          if (price > 0 && this.looksLikePriceElement(element as HTMLElement)) {
-            const currency = detectCurrency(text) || 'EUR';
-            const title = extractTitle(doc);
-            const imageUrl = extractImage(doc, element as HTMLElement);
-            
-            logger.debug('Generic pattern extraction successful', { 
-              selector, 
-              text: text.substring(0, 30), 
-              price 
-            });
-            
-            return {
-              title: title || 'Product',
-              price,
-              currency,
-              imageUrl,
-              available: true,
-            };
+          if (!this.looksLikePriceElement(element as HTMLElement)) {
+            continue;
+          }
+
+          const candidate = this.buildPriceCandidate(element);
+          if (!candidate) {
+            continue;
+          }
+
+          if (!bestCandidate || candidate.score > bestCandidate.score) {
+            bestCandidate = candidate;
           }
         }
+      }
+
+      if (bestCandidate) {
+        const title = extractTitle(doc);
+        const imageUrl = extractImage(doc, bestCandidate.element);
+
+        logger.debug('Generic pattern extraction successful', {
+          selector: bestCandidate.element.tagName.toLowerCase(),
+          price: bestCandidate.price,
+          score: bestCandidate.score,
+        });
+
+        return {
+          title: title || 'Product',
+          price: bestCandidate.price,
+          currency: bestCandidate.currency,
+          imageUrl,
+          available: true,
+        };
       }
 
       return null;
@@ -398,11 +430,284 @@ export class EnhancedGenericAdapter implements PriceAdapter {
     return hasCurrency || hasPriceClass;
   }
 
+  private buildPriceCandidate(element: Element): PriceCandidate | null {
+    const text = this.extractPriceText(element);
+    if (!text) {
+      return null;
+    }
+
+    const price = parsePrice(text);
+    if (price <= 0 || price >= 1_000_000) {
+      return null;
+    }
+
+    const currency = detectCurrency(text) || 'EUR';
+    if (this.isFinancingText(text) || this.isShippingText(text, price)) {
+      return null;
+    }
+    const score = this.scorePriceElement(element as HTMLElement, price, text);
+
+    return {
+      price,
+      currency,
+      element: element as HTMLElement,
+      score,
+    };
+  }
+
+  private extractPriceText(element: Element): string | undefined {
+    const attributeCandidates = [
+      'content',
+      'data-price',
+      'data-price-value',
+      'data-price-final',
+      'data-amount',
+      'data-value',
+      'value',
+      'aria-label',
+    ];
+
+    for (const attribute of attributeCandidates) {
+      const value = element.getAttribute?.(attribute);
+      if (value && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+
+    const text = element.textContent?.trim();
+    return text && text.length > 0 ? text : undefined;
+  }
+
+  private scorePriceElement(element: HTMLElement, price: number, text: string): number {
+    let score = 0;
+    const classId = `${element.className} ${element.id}`.toLowerCase();
+    const combinedText = `${text}`.toLowerCase();
+
+    if (element.getAttribute('itemprop') === 'price') score += 5;
+    if (
+      element.hasAttribute('data-price') ||
+      element.hasAttribute('data-price-value') ||
+      element.hasAttribute('data-price-final')
+    ) {
+      score += 4;
+    }
+    if (element.tagName === 'META' || element.tagName === 'INPUT') {
+      score += 3;
+    }
+    if (/[€$£¥]/.test(text)) {
+      score += 1;
+    }
+    if (this.containsAncillaryKeyword(`${classId} ${combinedText}`)) {
+      score -= 8;
+    }
+
+    score += Math.min(price / 200, 3); // slight preference for realistic/high prices
+    return score;
+  }
+
+  private isFinancingText(text: string): boolean {
+    const normalized = text.toLowerCase();
+    return /cuota|financi|mensual|mes\b|meses|al mes|por mes|mensuales/.test(normalized);
+  }
+
+  private isShippingText(text: string, price: number): boolean {
+    const normalized = text.toLowerCase();
+    if (price > 50) {
+      return false; // expensive items are unlikely to be shipping costs
+    }
+    return /env[ií]o|gastos|entrega|recogida|shipping|portes/.test(normalized);
+  }
+
+  private containsAncillaryKeyword(text: string): boolean {
+    return /env[ií]o|gastos|mensual|cuota|financi|portes|recogida|entrega|mes\b|meses|al mes|por mes/.test(
+      text.toLowerCase(),
+    );
+  }
+
   /**
    * Enhanced adapter doesn't support affiliate URLs
    */
   generateAffiliateUrl(url: string): string {
     return url;
+  }
+
+  private flattenJsonLdPayload(payload: unknown): JsonObject[] {
+    if (!payload) return [];
+
+    if (Array.isArray(payload)) {
+      return payload.flatMap(item => this.flattenJsonLdPayload(item));
+    }
+
+    if (typeof payload === 'object') {
+      const node = payload as JsonObject;
+      const result: JsonObject[] = [node];
+
+      if (node['@graph']) {
+        result.push(...this.flattenJsonLdPayload(node['@graph']));
+      }
+
+      if (node['itemListElement']) {
+        result.push(...this.flattenJsonLdPayload(node['itemListElement']));
+      }
+
+      return result;
+    }
+
+    return [];
+  }
+
+  private isProductNode(node: JsonObject): boolean {
+    const typeValue = node['@type'];
+    if (!typeValue) return false;
+
+    if (typeof typeValue === 'string') {
+      return /product/i.test(typeValue);
+    }
+
+    if (Array.isArray(typeValue)) {
+      return typeValue.some(entry => typeof entry === 'string' && /product/i.test(entry));
+    }
+
+    return false;
+  }
+
+  private normalizeTitle(node: JsonObject): string | undefined {
+    const candidates = [node['name'], node['title'], node['headline']];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+
+    return undefined;
+  }
+
+  private normalizeObjectArray(value: unknown): JsonObject[] {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value
+        .map(entry => (entry && typeof entry === 'object' ? (entry as JsonObject) : null))
+        .filter((entry): entry is JsonObject => entry !== null);
+    }
+
+    if (value && typeof value === 'object') {
+      return [value as JsonObject];
+    }
+
+    return [];
+  }
+
+  private extractPriceFromNode(node: JsonObject): number | null {
+    const priceSpec = node['priceSpecification'];
+    const specObjects = this.normalizeObjectArray(priceSpec);
+
+    const values: unknown[] = [
+      node['price'],
+      node['priceValue'],
+      node['currentPrice'],
+      node['lowPrice'],
+      node['highPrice'],
+    ];
+
+    for (const spec of specObjects) {
+      values.push(spec['price'], spec['minPrice'], spec['maxPrice']);
+    }
+
+    for (const value of values) {
+      const parsed = this.parsePriceValue(value);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  private extractCurrencyFromNode(node: JsonObject): string | undefined {
+    const priceSpec = this.normalizeObjectArray(node['priceSpecification']);
+
+    const candidates = [
+      node['priceCurrency'],
+      node['currency'],
+      node['offersCurrency'],
+      ...priceSpec.map(spec => spec['priceCurrency']),
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+
+    const priceValue = node['price'];
+    if (typeof priceValue === 'string') {
+      const detected = detectCurrency(priceValue);
+      if (detected) {
+        return detected;
+      }
+    }
+
+    return undefined;
+  }
+
+  private extractImageFromNode(node: JsonObject): string | undefined {
+    const image = node['image'] ?? node['imageUrl'] ?? node['thumbnail'];
+
+    if (typeof image === 'string') {
+      return image;
+    }
+
+    if (Array.isArray(image)) {
+      const firstString = image.find(item => typeof item === 'string') as string | undefined;
+      return firstString;
+    }
+
+    return undefined;
+  }
+
+  private parsePriceValue(value: unknown): number | null {
+    if (typeof value === 'number') {
+      const normalized = this.normalizeLargeNumericPrice(value);
+      return normalized;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = parsePrice(value);
+      if (parsed > 0) {
+        const normalized = this.normalizeLargeNumericPrice(parsed);
+        if (normalized !== null) {
+          return normalized;
+        }
+      }
+
+      const digitsOnly = value.replace(/[^\d]/g, '');
+      if (digitsOnly.length > 0) {
+        const numeric = Number(digitsOnly);
+        const normalized = this.normalizeLargeNumericPrice(numeric);
+        if (normalized !== null) {
+          return normalized;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private normalizeLargeNumericPrice(value: number): number | null {
+    if (value <= 0) return null;
+    if (value < 100_000) return value;
+
+    const dividers = [10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
+    for (const divider of dividers) {
+      const normalized = value / divider;
+      if (normalized >= 1 && normalized <= 10_000) {
+        return normalized;
+      }
+    }
+
+    return null;
   }
 }
 
