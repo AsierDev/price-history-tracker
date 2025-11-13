@@ -97,7 +97,7 @@ src/
 └── manifest.json         # MV3 config
 ```
 
-Docs: `docs/README.md`, `docs/README-ADAPTERS.md`, `docs/GENERIC_ADAPTER_GUIDE.md`, `docs/FIREBASE_SETUP.md`, `auditoria*.md` (audit reports), plus targeted bug-fix notes in `docs/BUG_FIX_*`.
+Docs: `docs/DEVELOPER_GUIDE.md`, `docs/ADAPTERS_GUIDE.md`, `docs/TESTING_GUIDE.md`, `docs/USER_GUIDE.md`, `docs/FIREBASE_SETUP.md`, `auditoria*.md` (audit reports), plus targeted bug-fix notes in `docs/BUG_FIX_*`.
 
 ---
 

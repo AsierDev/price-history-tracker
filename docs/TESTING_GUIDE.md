@@ -1,201 +1,135 @@
 # Testing Guide – Price History Tracker
 
-Esta guía contiene los pasos manuales para verificar que la extensión funciona correctamente antes de un release.
+Use this checklist before every release to ensure the extension behaves correctly.
 
 ---
 
-## 1. Prerrequisitos
+## 1. Pre-flight
 
 ```bash
-npm run build   # Build exitoso sin warnings
+npm run build   # must finish without warnings
 ```
 
-Cargar la extensión en Chrome:
-1. `chrome://extensions` → Modo desarrollador → Cargar extensión sin empaquetar → `dist/`
-2. Verificar que el icono 💰 aparece en la barra de herramientas
+Load the freshly built `dist/` folder at `chrome://extensions` (Developer Mode → Load unpacked). Confirm the 💰 icon appears in the toolbar and the popup opens.
 
 ---
 
-## 2. Instalación
+## 2. Installation sanity
 
-- [ ] Extensión visible en `chrome://extensions`
-- [ ] Icono 💰 en toolbar
-- [ ] Popup se abre al hacer clic
-- [ ] Popup muestra "No products tracked yet"
+- [ ] Extension enabled in `chrome://extensions` and service worker running.
+- [ ] Toolbar icon visible; popup renders the empty state (“No products tracked yet”).
 
 ---
 
-## 3. Track Product (Amazon)
+## 3. Specific adapters
 
-1. Navegar a `https://amazon.com/dp/B08N5WRWNW` (o cualquier producto)
-2. Esperar 2 s
-3. Verificar botón flotante **"💰 Track Price"** (abajo derecha)
-4. Click → mensaje "⏳ Adding..." → "✅ Tracked!"
-5. Abrir popup → producto debe aparecer con título, precio, imagen y etiqueta **amazon**
+Perform the following on desktop Chrome (regular and incognito if possible):
 
----
+### Amazon
+1. Open `https://www.amazon.com/dp/B08N5WRWNW` (or any ASIN).
+2. Wait for the floating “💰 Track Price” button.
+3. Click it; message should go `Adding...` → `Tracked!`.
+4. Open the popup; verify the product card shows Amazon badge, price, currency, image.
 
-## 4. Track Product (eBay)
+### eBay
+Repeat with any `https://www.ebay.com/itm/<id>` URL; ensure the badge reads `ebay`.
 
-1. Navegar a `https://ebay.com/itm/` + cualquier ID
-2. Repetir pasos del test anterior
-3. Verificar etiqueta **ebay**
+### AliExpress
+Repeat with any `https://www.aliexpress.com/item/<id>.html`; expect `aliexpress` badge.
 
----
-
-## 5. Track Product (AliExpress)
-
-1. Navegar a `https://aliexpress.com/item/` + cualquier ID
-2. Repetir pasos del test anterior
-3. Verificar etiqueta **aliexpress**
+### Manual fallback (Generic)
+1. Visit an unsupported site (e.g., Etsy product).
+2. Ensure the button text indicates manual tracking (picker icon 📍).
+3. Activate the picker, select the price, and confirm validation.
+4. In the popup the product should show `Manual` badge + the store name detected by metadata extractor.
 
 ---
 
-## 6. Popup UI
+## 4. Popup UI
 
-### 6.1 Estadísticas
-- [ ] "Products" muestra el número correcto
-- [ ] "Total Savings" muestra 0€ (sin cambios)
-
-### 6.2 Búsqueda
-1. Agregar 3+ productos
-2. Escribir en la caja de búsqueda
-3. Verificar filtrado en vivo
-
-### 6.3 Dark mode
-1. Click 🌙 → tema oscuro
-2. Click ☀️ → tema claro
-3. Cerrar y reabrir popup → tema persiste
-
-### 6.4 Botones de producto
-- [ ] "View" abre el producto en nueva pestaña
-- [ ] "Remove" muestra diálogo y elimina producto
-- [ ] "🔄 Refresh" inicia chequeo manual
-
-### 6.5 Gráfico de historial
-1. Esperar a que un producto tenga ≥2 chequeos (automático o manual)
-2. Verificar botón **"📊 Historial"** aparece
-3. Click → modal con gráfico y estadísticas
-4. Verificar que el gráfico muestra puntos de precio y tooltips
-5. Cerrar modal → gráfico se destruye
+- **Stats** – “Products” count increments; “Total Savings” reflects positive deltas only.
+- **Search** – type a fragment; product list filters immediately.
+- **Dark mode** – toggle 🌙/☀️, close & reopen popup to verify persistence.
+- **Per-card actions** –
+  - `📊 Historial` appears once a product has ≥2 checks and opens the Chart.js modal.
+  - `View` opens a new tab (with affiliate URL if defined).
+  - `Remove` asks for confirmation and deletes the product.
+- **Refresh button (🔄)** – disables while running, re-enables after PriceChecker finishes.
 
 ---
 
-## 7. Service Worker
+## 5. Service worker
 
-### 7.1 Alarmas
-En DevTools Console:
-```js
-chrome.alarms.getAll(console.log);
-```
-- [ ] Debe aparecer alarma `checkPrices` con `periodInMinutes: 360`
-
-### 7.2 Chequeo manual
-1. Agregar al menos 1 producto
-2. Click 🔄 en popup
-3. Abrir Service Worker DevTools (`chrome://extensions` → "Service worker")
-4. Verificar logs:
-   ```
-   [INFO] Starting price check for all products
-   [INFO] Checking X active products
-   [DEBUG] Checking product {title}
-   [DEBUG] Product checked successfully
-   [INFO] Price check completed
-   ```
-
-### 7.3 Storage
-```js
-chrome.storage.sync.get('priceTrackerData', console.log);
-```
-- [ ] Estructura correcta: `{ products, rateLimitBuckets, config, lastCheckTime }`
-- [ ] Cada producto contiene `priceHistory` con entradas
-
----
-
-## 8. Rate Limiting (simulación)
-
-1. Agregar producto con URL inválida (simula fallo)
-2. Disparar chequeo manual
-3. Verificar log: "Rate limit applied to domain X with backoffMinutes: 1"
-4. Intentar nuevo chequeo inmediato → producto debe ser skipped
-5. Esperar 1 min → reintentar → debe intentarse de nuevo
-
----
-
-## 9. Notificaciones (simulación)
-
-1. Agregar un producto
-2. Modificar su precio en Storage (simula bajada >5 %):
+1. Open `chrome://extensions`, click “Service worker” under the extension → Console.
+2. Trigger a manual refresh (🔄) and expect logs:
+   - `Starting price check for all products`
+   - `Checking {n} active products`
+   - `Product checked successfully`
+   - `Price check completed`
+3. Inspect alarms:
    ```js
-   chrome.storage.sync.get('priceTrackerData', data => {
-     const p = data.priceTrackerData.products[0];
-     p.currentPrice = p.initialPrice * 0.8; // -20%
-     chrome.storage.sync.set({ priceTrackerData: data.priceTrackerData });
-   });
+   chrome.alarms.getAll(console.log);
    ```
-3. Disparar chequeo manual con 🔄
-4. Verificar que aparece notificación con:
-   - Título: "💰 ¡Bajada de Precio!"
-   - Mensaje: "Producto\n29.99€ → 23.99€ (-20.0%)"
-   - Botones: "Ver Producto", "Dejar de Trackear"
-5. Click "Ver Producto" → abre URL
-6. Click "Dejar de Trackear" → elimina producto
+   Should list an alarm with `periodInMinutes: 360`.
+4. Inspect storage:
+   ```js
+   chrome.storage.local.get(null, console.log);
+   ```
+   Verify product keys (`product_<id>`), rate limits, config, last check time.
 
 ---
 
-## 10. Edge Cases
+## 6. Rate limiting
 
-- [ ] No se pueden agregar >50 productos (alerta)
-- [ ] No se pueden agregar duplicados (alerta)
-- [ ] URLs inválidas manejan error sin crash
-- [ ] Páginas sin precio manejan error
-
----
-
-## 11. Performance
-
-- [ ] Popup abre instantáneamente (<200 ms)
-- [ ] Gráfico renderiza sin lag (<500 ms)
-- [ ] Chequeo manual no bloquea UI
-- [ ] Service worker responde a mensajes sin delay
+1. Temporarily edit a product URL to something invalid (DevTools → Application → Storage → chrome.storage.local).
+2. Trigger a check; log should report a failure and `backoffMinutes: 1`.
+3. Trigger another check immediately → product should be skipped.
+4. Wait one minute, trigger again → the check should proceed.
 
 ---
 
-## 12. Checklist final
+## 7. Notifications
 
-- [ ] Build sin warnings
-- [ ] Instalación correcta
-- [ ] Track product en las 3 plataformas
-- [ ] Popup UI funcional (búsqueda, dark mode, botones)
-- [ ] Gráfico de historial visible y responsive
-- [ ] Service worker logs OK
-- [ ] Alarmas configuradas
-- [ ] Storage persiste datos
-- [ ] Rate limiting funciona
-- [ ] Notificaciones aparecen y botones funcionan
-- [ ] Edge cases manejados
-- [ ] Performance aceptable
+1. Add a product.
+2. Reduce its `currentPrice` in storage to simulate a >5 % drop.
+3. Trigger a manual check.
+4. Expect a Chrome notification with drop percentage and two buttons:
+   - **View product** – opens the URL.
+   - **Stop tracking** – removes the product.
 
 ---
 
-## 13. Reporte de testing
+## 8. Edge cases
 
-```markdown
+- [ ] Attempt to add the same URL twice; expect an error toast.
+- [ ] Add more than 50 products; expect a “Maximum products tracked” message.
+- [ ] Try tracking a page without a price; ensure a friendly error is shown.
+- [ ] Cancel the manual picker with ESC; ensure the state resets.
+
+---
+
+## 9. Performance spot checks
+
+- Popup opens in under 200 ms (no spinner once cached).
+- Price chart renders smoothly (<500 ms) and destroys the Chart.js instance on close.
+- Manual check does not freeze the popup UI.
+- Service worker responds to messages instantly (no unhandled promise rejections).
+
+---
+
+## 10. Test report template
+
+```
 ## Test Report – YYYY-MM-DD
 
-- Chrome Version: vX.Y.Z
-- Extension Version: 1.0.0
-- OS: macOS/Windows/Linux
+Chrome Version: XX
+Extension Version: X.Y.Z
+OS: macOS / Windows / Linux
 
-Tests Passed: 12/12
-Tests Failed: 0/12
-
-Issues: None
-
-Notes:
-- Ready for release
+Automated tests: npm test (pass/fail)
+Manual checklist:  ✅ / ⚠️
+Issues found: (link to GitHub issues)
+Notes: …
 ```
 
----
-
-¿Fallas? Documenta en un issue con pasos para reproducir, expected vs actual y screenshots si aplica.
+Archive reports in the repo or issue tracker if your workflow requires audit trails.

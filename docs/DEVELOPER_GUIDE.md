@@ -1,183 +1,145 @@
 # Developer Guide – Price History Tracker
 
-Esta guía cubre arquitectura, desarrollo, testing y troubleshooting para contribuir a la extensión.
+This document explains the internal architecture, local development workflow, testing strategy, and troubleshooting tips for contributors.
 
 ---
 
-## 1. Arquitectura
+## 1. Architecture Overview
 
-### 1.1 Patrón Adapter
+### 1.1 Tiered Adapter System
 
-Cada plataforma (Amazon, eBay, AliExpress) tiene su propio adapter que implementa `PriceAdapter`:
+Adapters implement `PriceAdapter` and are resolved in three tiers:
 
-```typescript
-interface PriceAdapter {
-  name: string;
-  enabled: boolean;
-  canHandle(url: string): boolean;
-  extractData(html: string): Promise<ExtractedProductData>;
-  generateAffiliateUrl(url: string): string;
-}
+1. **Specific adapters** (Amazon, eBay, AliExpress, MediaMarkt, PC Componentes) – full auto-extraction.
+2. **Whitelist adapters** (`EnhancedGenericAdapter`) – auto extraction for 600+ curated domains.
+3. **Manual fallback** (`GenericAdapter`) – requires a CSS selector provided by the price picker.
+
+`src/adapters/registry.ts` exposes helpers (`getAdapterForUrl`, `getTierInfo`, `getBadgeInfo`, `isSupportedSite`) for both the service worker and popup/content UIs.
+
+### 1.2 Data Flow
+
+```
+Content Script ──► injects CTA + price picker
+      │
+      ▼
+Service Worker ──► receives product metadata, normalizes URL, resolves adapter
+      │
+      ▼
+Storage Manager ──► persists one key per product + rate-limit buckets in chrome.storage.local
+      │
+      ├─► PriceChecker (scheduled/ manual runs)
+      └─► Firebase backend (optional shared history)
+      │
+      ▼
+Popup UI ──► reads cached data, renders cards/graphs, dispatches actions
 ```
 
-- **Registry**: Auto‑descubre adapters disponibles (`adapters/registry.ts`)
-- **Extensión**: Para añadir una nueva plataforma solo se necesita un nuevo archivo + import
+### 1.3 Rate Limiting
 
-### 1.2 Flujo de datos
+Serial execution is intentionally throttled:
 
-1. **Content script** inyecta botón "Track Price" en páginas compatibles
-2. **Service worker** orquesta alarmas y actualizaciones de precios
-3. **Popup** muestra productos y permite acciones manuales
-4. **Chrome Storage Sync** persiste datos entre dispositivos (límite ~100 KB)
+| Failure count | Backoff |
+| --- | --- |
+| 1st | 1 minute |
+| 2nd | 5 minutes |
+| 3rd | 30 minutes |
+| 4th+ | 120 minutes |
 
-### 1.3 Rate limiting
+Buckets are keyed by normalized domain and stored in `chrome.storage.local` via `RateLimiter`.
 
-Backoff exponencial por dominio para evitar baneos:
-- 1er fallo: 1 min
-- 2º fallo: 5 min
-- 3er fallo: 30 min
-- 4º+ fallo: 2 h
+### 1.4 HTML Parsing
 
-### 1.4 Parser HTML
-
-Los adapters usan `createDocument(html)` de `utils/htmlParser.ts`, que internamente utiliza **linkedom** para funcionar en el contexto del service worker. No usar `DOMParser` directamente.
+Every adapter (including helper utilities) must parse HTML with `createDocument(html)` from `src/utils/htmlParser.ts`. The helper wraps **linkedom**, which works in MV3 service workers; `DOMParser` is not available and will break manual tracking.
 
 ---
 
-## 2. Stack técnico
+## 2. Tech Stack
 
-- **TypeScript** (strict mode)
-- **esbuild** (build)
-- **Chrome APIs** (Storage Sync, Alarms, Notifications)
-- **linkedom** (parser HTML en service worker)
-- **Chart.js** (gráficos en popup)
+| Layer | Technology |
+| --- | --- |
+| Language | TypeScript (strict) |
+| Bundler | esbuild (ES module output) |
+| Runtime | Chrome Extension MV3 (service worker background) |
+| DOM Parsing | linkedom |
+| UI | Vanilla TS + Chart.js in popup |
+| Testing | Vitest + jsdom, chrome API mocks |
+| Backend (optional) | Firebase Firestore + anonymous auth |
 
-### 2.1 Gráfico de Historial (Chart.js)
-
-Detalles clave de la implementación:
-
-- **Botón `📊 Historial`** en cada tarjeta.
-  - Visible solo si `priceHistory.length ≥ 2`.
-- **Modal**: overlay centrado (máx. 600 px), animación *fade-in*.
-- **Estadísticas**: precio actual, inicial, mínimo, máximo (colores verde/rojo).
-- **Gráfico Line**: último 50 registros, relleno semitransparente, línea suavizada `tension: 0.4`.
-- **Dark Mode**: colores y grid ajustados automáticamente.
-- **Memoria**: `chart.destroy()` al cerrar; listeners de `ESC` eliminados.
-- **Accesibilidad**: cierre con `ESC`, click overlay o botón X; `aria-labels`.
-
-Para personalizar, revisa `popup/popup.ts` (`renderPriceChart`, `updateHistoryStats`) y `popup/styles.css`.
+Chart.js rendering is handled in `popup/popup.ts` (`renderPriceChart`, `updateHistoryStats`). When editing chart code make sure to destroy previous instances (`chart.destroy()`) before creating a new one.
 
 ---
 
-## 3. Desarrollo local
+## 3. Local Development
 
 ```bash
-npm install          # Instalar dependencias
-npm run watch        # Build continuo
-npm run build        # Build de producción
-npm run lint         # ESLint
+npm install          # install dependencies
+npm run watch        # watch mode (esbuild)
+npm run build        # production build
+npm run lint         # ESLint for src + tests
 ```
 
-### 3.1 Estructura de carpetas
+### 3.1 Folder Structure
 
 ```
 src/
-├── core/              # Lógica de negocio
-│   ├── types.ts       # Interfaces
-│   ├── storage.ts     # Chrome Storage wrapper
-│   ├── priceChecker.ts # Orquestador de chequeos
-│   ├── rateLimiter.ts # Backoff
-│   └── notificationManager.ts
-├── adapters/          # Implementaciones por plataforma
-│   ├── types.ts
-│   ├── registry.ts
-│   └── implementations/
-├── popup/             # UI del popup
-├── utils/             # Utilidades
-├── service-worker.ts  # Background orchestration
-├── content-script.ts  # Inyección de botón
-└── manifest.json      # Manifest V3
+├── adapters/              # adapter interfaces + registry + implementations
+├── backend/               # Firebase helpers
+├── config/                # supported sites + ENV
+├── core/                  # StorageManager, PriceChecker, RateLimiter, NotificationManager
+├── popup/                 # popup logic, HTML, styles
+├── utils/                 # html parser, metadata extractor, price parser, logger
+├── content-script.ts      # button injection + price picker
+├── service-worker.ts      # background router + tracking flows
+└── manifest.json          # MV3 manifest
 ```
+
+`tests/` mirrors the structure (adapters, core, utils, integration, performance).
 
 ---
 
-## 4. Agregar una nueva plataforma
+## 4. Adding a New Platform
 
-1. **Crear adapter**: `src/adapters/implementations/tienda.adapter.ts`
-2. **Implementar `PriceAdapter`**:
-   - `canHandle(url)`: detecta URLs compatibles
-   - `extractData(html)`: extrae título, precio, imagen, disponibilidad
-   - `generateAffiliateUrl(url)`: añade IDs de afiliado
-3. **Importar en registry**: añadir `import './implementations/tienda.adapter';` en `src/adapters/registry.ts`
-4. **Probar**: build + cargar extensión + visitar URL de la tienda
+1. Create `src/adapters/implementations/<platform>.adapter.ts`.
+2. Implement `PriceAdapter` (use `createDocument`, return structured errors, support multiple selectors).
+3. Register it inside `src/adapters/registry.ts` (specific adapter list).
+4. Extend manifest permissions only if the adapter needs additional host permissions.
+5. Add tests under `tests/adapters/`.
 
-> Ver `docs/README-ADAPTERS.md` para template y ejemplo completo.
+See [`docs/README-ADAPTERS.md`](README-ADAPTERS.md) for a full template and testing checklist.
 
 ---
 
 ## 5. Testing
 
-### 5.1 Build verification
+- `npm test` runs Vitest (unit + integration) with mocked chrome APIs.
+- `npm run test:coverage` generates `coverage/` reports (global threshold 60%).
+- `PRICECHECKER_PERF=true npx vitest run tests/performance/priceChecker.performance.test.ts` benchmarks the serial checker (current baseline ≈ 1 s/product).
 
-```bash
-npm run build   # Debe completar sin warnings
-```
-
-### 5.2 Manual testing checklist
-
-- Instalación: extensión carga en `chrome://extensions`
-- Track product: botón aparece y agrega producto correctamente
-- Popup UI: búsqueda, dark mode, botón refresh
-- Service worker: alarmas creadas, logs visibles
-- Notificaciones: se disparan al bajar precio ≥5 %
-- Rate limiting: backoff aplicado en fallos
-- Gráficos: modal de historial con Chart.js
-
-### 5.3 Debug tools
-
-```js
-// Ver storage
-chrome.storage.sync.get('priceTrackerData', console.log);
-
-// Ver alarmas
-chrome.alarms.getAll(console.log);
-
-// Forzar chequeo manual
-chrome.runtime.sendMessage({ action: 'checkPricesNow' }, console.log);
-
-// Limpiar rate limits
-chrome.runtime.sendMessage({ action: 'clearAllRateLimits' }, console.log);
-```
+Manual QA steps (browsers, adapters, popup interactions, notifications, rate limiting) live in [`docs/TESTING_GUIDE.md`](TESTING_GUIDE.md). Keep that guide updated whenever UI flows change.
 
 ---
 
 ## 6. Troubleshooting
 
-| Síntoma | Causa común | Solución |
+| Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| El botón "Track Price" no aparece | URL no coincide con patterns | Revisa `manifest.json` y el adapter |
-| No se actualizan los precios | `DOMParser` no disponible en service worker | Usa `createDocument()` de `utils/htmlParser.ts` |
-| Extension no se carga | Build falló o `dist/` corrupto | `rm -rf dist && npm run build` |
-| Notificaciones no aparecen | Chrome bloquea o no hay bajada ≥5 % | Habilita notificaciones en Chrome y simula bajada |
+| “Track Price” button missing | URL does not match adapter/whitelist | Confirm adapter patterns and supportedSites entry |
+| Manual tracking fails silently | `customSelector` not provided or `createDocument` not used | Ensure price picker sent selector; verify adapter uses linkedom |
+| Popup shows “generic” instead of store name | `storeName` missing in metadata | Check `extractMetadata` result in content script |
+| No notifications | Drop < threshold or Chrome notifications disabled | Lower threshold via settings or enable Chrome notifications |
+| Firebase errors | `.env` misconfigured or anonymous auth disabled | Follow [`docs/FIREBASE_SETUP.md`](FIREBASE_SETUP.md) and rebuild |
+
+Check the service worker logs via `chrome://extensions` → “Service worker” → Console for detailed output. Use `chrome.storage.local.get(null, console.log)` to inspect persisted keys.
 
 ---
 
-## 7. Contribución
+## 7. Releasing
 
-1. Fork del repositorio
-2. Feature branch: `git checkout -b feature/nueva-plataforma`
-3. Commits atómicos con mensajes claros
-4. Pull request con checklist de testing completado
+1. Update version in `package.json` (semantic).
+2. `npm run build`
+3. Run lint + tests (`npm run lint && npm test`).
+4. Audit bundle for injected secrets (see README release checklist).
+5. Zip `dist/` and upload to the Chrome Web Store.
+6. Tag the release (`git tag vX.Y.Z && git push --tags`).
 
----
-
-## 8. Release
-
-- Actualizar `package.json` (versión)
-- Build: `npm run build`
-- Tag en Git: `git tag v1.0.0`
-- Publicar en Chrome Web Store
-
----
-
-¿Dudas? Revisa `docs/USER_GUIDE.md` para flujo de usuario o abre un issue.
+Need help? Open an issue in the repository or ask in the team channel.

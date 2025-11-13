@@ -1,208 +1,131 @@
 # Firebase Setup Guide
 
-Esta guía explica cómo configurar Firebase para el backend de historial compartido.
+Use this document to enable the shared price-history backend. Firebase integration is optional; the extension continues to work in local-only mode when omitted.
 
-## Resumen
+---
 
-La extensión usa Firebase para:
-- **Firestore**: Almacenar historial de precios compartido entre usuarios
-- **Authentication (Anonymous)**: Autenticación transparente sin registro
+## 1. Create a Firebase project
 
-## Paso 1: Crear Proyecto Firebase
+1. Visit [Firebase Console](https://console.firebase.google.com/).
+2. Click **Add project** and follow the wizard (Analytics optional).
+3. Once created, open the project dashboard.
 
-1. Ve a [Firebase Console](https://console.firebase.google.com/)
-2. Click en "Add project" / "Agregar proyecto"
-3. Nombre del proyecto: `price-history-tracker` (o el que prefieras)
-4. Deshabilita Google Analytics (opcional para MVP)
-5. Click "Create project"
+## 2. Enable Firestore
 
-## Paso 2: Habilitar Firestore Database
+1. Sidebar → **Build → Firestore Database** → **Create database**.
+2. Start in **test mode** for development (switch to production rules later).
+3. Choose a region close to your users.
 
-1. En el menú lateral, ve a **Build → Firestore Database**
-2. Click "Create database"
-3. Selecciona modo: **Start in test mode** (para desarrollo)
-   - Nota: Cambiar a production mode después con reglas de seguridad
-4. Selecciona ubicación: `europe-west1` (o la más cercana)
-5. Click "Enable"
+### Recommended security rules (dev)
 
-## Paso 3: Configurar Security Rules
-
-En Firestore → Rules, reemplaza con:
-
-```javascript
+```js
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /products/{productId} {
-      // Permitir lectura a todos
       allow read: if true;
-      
-      // Permitir escritura solo a usuarios autenticados (incluso anónimos)
       allow write: if request.auth != null;
     }
   }
 }
 ```
 
-Click "Publish"
+Publish the rules once pasted.
 
-## Paso 4: Habilitar Anonymous Authentication
+## 3. Enable anonymous authentication
 
-1. En el menú lateral, ve a **Build → Authentication**
-2. Click "Get started"
-3. En la pestaña "Sign-in method"
-4. Click en "Anonymous"
-5. Toggle "Enable" → ON
-6. Click "Save"
+1. Sidebar → **Build → Authentication** → **Get started**.
+2. In **Sign-in method**, enable **Anonymous** and save.
 
-## Paso 5: Obtener Credenciales Web App
+## 4. Register a web app & copy config
 
-1. En Project Overview (⚙️ Settings)
-2. Scroll down a "Your apps"
-3. Click en el ícono web `</>`
-4. Nombre de la app: `price-tracker-extension`
-5. **NO** marcar "Also set up Firebase Hosting"
-6. Click "Register app"
-7. Copia el objeto `firebaseConfig`:
+1. Project settings (gear icon) → **General** tab.
+2. Under “Your apps” click the `</>` icon to register a web app.
+3. Name it (e.g., `price-tracker-extension`) and skip Hosting.
+4. Copy the generated config:
 
-```javascript
+```js
 const firebaseConfig = {
-  apiKey: "AIzaSy...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123"
+  apiKey: 'AIzaSy...',
+  authDomain: 'your-project.firebaseapp.com',
+  projectId: 'your-project',
+  storageBucket: 'your-project.appspot.com',
+  messagingSenderId: '123456789',
+  appId: '1:123456789:web:abc123'
 };
 ```
 
-## Paso 6: Configurar Variables de Entorno
+## 5. Populate `.env`
 
-1. Crea un archivo `.env` en la raíz del proyecto (copia de `.env.example`)
-2. Rellena las variables de Firebase:
+Duplicate `.env.example` → `.env` and fill the Firebase variables:
 
-```bash
-# Firebase Configuration
-FIREBASE_API_KEY=AIzaSy...
-FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-FIREBASE_MESSAGING_SENDER_ID=123456789
-FIREBASE_APP_ID=1:123456789:web:abc123
+```
+FIREBASE_API_KEY=
+FIREBASE_AUTH_DOMAIN=
+FIREBASE_PROJECT_ID=
+FIREBASE_STORAGE_BUCKET=
+FIREBASE_MESSAGING_SENDER_ID=
+FIREBASE_APP_ID=
 ```
 
-## Paso 7: Build y Test
+Rebuild (`npm run build`) so esbuild injects the values.
 
-```bash
-npm run build
-```
+## 6. Verify integration
 
-Carga la extensión en Chrome y verifica:
-1. Agregar un producto → debe aparecer en Firestore Console
-2. Múltiples usuarios agregando el mismo producto → historial compartido
-3. Gráfico de precios muestra datos previos
+1. Load the rebuilt extension.
+2. Add a product; check Firestore → `products` collection. Documents should contain `url`, `title`, `priceHistory`, etc.
+3. Click the popup’s **Test Firebase** button to ensure anonymous auth succeeded.
+4. Watch the Chart.js modal – it should reflect shared history across users when multiple contributors track the same URL.
 
-## Estructura de Datos en Firestore
+### Firestore document shape
 
-### Collection: `products`
-
-Cada documento representa un producto único (identificado por URL limpia):
-
-```javascript
+```js
 {
-  url: "https://amazon.es/dp/B06XGW29XJ",
-  title: "Helly Hansen Dubliner...",
-  platform: "amazon",
-  imageUrl: "https://m.media-amazon.com/...",
+  url: 'https://www.amazon.es/dp/B06XGW29XJ',
+  title: 'Helly Hansen Dubliner',
+  platform: 'amazon',
+  imageUrl: 'https://m.media-amazon.com/...',
   priceHistory: [
-    {
-      price: 68.00,
-      currency: "EUR",
-      timestamp: 1699000000000,
-      source: "user"  // o "check"
-    },
-    // ... más entradas
+    { price: 68.0, currency: 'EUR', timestamp: 1699000000000, source: 'user' },
+    { price: 65.5, currency: 'EUR', timestamp: 1699050000000, source: 'check' }
   ],
-  lastUpdated: 1699200000000,
+  lastUpdated: 1699050000000,
   contributorCount: 15
 }
 ```
 
-## Límites del Tier Gratuito
+---
 
-Firebase Spark Plan (gratuito):
-- **Firestore**: 50K reads/day, 20K writes/day, 1GB storage
-- **Authentication**: Unlimited anonymous users
-- **Bandwidth**: 10GB/month
+## 7. Production hardening
 
-Suficiente para ~1000-5000 usuarios activos en MVP.
+Once you move beyond MVP:
 
-## Monitoreo
+- Tighten security rules (limit updates, cap priceHistory length, forbid deletes).
+- Enable Firestore usage alerts (Billing → Budget & alerts).
+- Consider Cloud Functions to validate writes or enforce per-user quotas.
+- Switch Firestore to production mode and stage rule changes via CI.
 
-### Firestore Console
-- Ve a Firestore Database → Data
-- Verifica que los productos se están creando correctamente
-- Revisa el tamaño de `priceHistory` (limitado a 500 entradas por producto)
+Example production rule snippet:
 
-### Authentication Console
-- Ve a Authentication → Users
-- Verás usuarios anónimos con UID único
-- No se almacena información personal
-
-## Troubleshooting
-
-### Error: "Firebase not configured"
-- Verifica que `.env` tiene todas las variables
-- Rebuild: `npm run build`
-- Revisa console logs en DevTools
-
-### Error: "Permission denied"
-- Verifica Security Rules en Firestore
-- Asegúrate que Anonymous Auth está habilitado
-- Revisa que el usuario se autenticó (check `chrome.storage.local` → `anonymousUserId`)
-
-### Build falla con errores de Firebase
-- Asegúrate que `firebase` está instalado: `npm install firebase`
-- Verifica que `esbuild.config.js` tiene las variables de entorno
-
-## Migración a Production
-
-Cuando estés listo para producción:
-
-1. **Security Rules más estrictas**:
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /products/{productId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null 
-        && request.resource.data.priceHistory.size() <= 500;
-      allow delete: if false; // No permitir borrado
-    }
-  }
+```js
+match /products/{productId} {
+  allow read: if true;
+  allow create: if request.auth != null;
+  allow update: if request.auth != null &&
+    request.resource.data.priceHistory.size() <= 500;
+  allow delete: if false;
 }
 ```
 
-2. **Índices compuestos** (si necesitas queries complejas):
-   - Firestore → Indexes
-   - Crear índices para queries frecuentes
+---
 
-3. **Monitoreo de costos**:
-   - Firebase Console → Usage and billing
-   - Configurar alertas de presupuesto
+## 8. Troubleshooting
 
-4. **Rate limiting adicional**:
-   - Implementar Cloud Functions para validación
-   - Limitar writes por usuario/IP
+| Issue | Fix |
+| --- | --- |
+| “Firebase not configured” logs | `.env` missing values or build not rerun. Rebuild after editing env vars. |
+| “Permission denied” from Firestore | Anonymous auth disabled or rules too strict. Enable Anonymous sign-in and republish rules. |
+| Notifications mention backend failure | Firestore write rejected; inspect service worker console for details. |
+| Bundle still shows placeholder keys | Ensure `.env` values exist before running `npm run build`; audit `dist/*.js` with `rg -n "FIREBASE"`. |
 
-## Arquitectura de Fallback
-
-Si Firebase falla o no está configurado:
-- ✅ Extensión funciona en modo local-only
-- ✅ Productos se guardan en `chrome.storage.local`
-- ❌ No hay historial compartido
-- ❌ Gráficos solo muestran datos desde que el usuario agregó el producto
-
-Logs indicarán: `"Firebase not configured, skipping backend sync"`
+If Firebase is unavailable the extension continues in local-only mode (products remain in `chrome.storage.local`; backend sync is skipped and logs will state “Firebase not configured, skipping backend sync”).
