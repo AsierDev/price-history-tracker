@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 coverage/
+audit/
 
 # Build output
 dist/

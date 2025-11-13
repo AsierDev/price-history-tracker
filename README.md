@@ -1,244 +1,171 @@
 # 💰 Price History Tracker
 
-Chrome extension para rastrear historial de precios en **cualquier sitio e-commerce**. Incluye soporte específico para Amazon, eBay y AliExpress, más un **Generic Adapter** que permite trackear precios en cualquier otra tienda mediante selección manual.
+Chrome extension that tracks price history across Amazon, eBay, AliExpress, MediaMarkt, PC Componentes, and hundreds of additional stores using a tiered adapter system plus a universal manual price picker.
 
-[![CI](https://github.com/your-username/price-history-tracker/workflows/CI/badge.svg)](https://github.com/your-username/price-history-tracker/actions)
-[![Coverage](https://codecov.io/gh/your-username/price-history-tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/your-username/price-history-tracker)
+[![CI](https://github.com/your-username/price-history-tracker/workflows/CI/badge.svg)](https://github.com/AsierDev/price-history-tracker/actions/)  
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+---
 
 ## 🚀 Quick Start
 
-> **Requisitos:** Node.js 20.x y npm 9+
+> Requirements: Node.js ≥ 20, npm ≥ 9
 
 ```bash
-# Instalar dependencias
-npm install
+npm install            # install dependencies
+npm run build          # build MV3 bundles
 
-# Compilar extensión
-npm run build
-
-# Cargar en Chrome
-# 1. Abrir chrome://extensions
-# 2. Activar "Modo desarrollador"
-# 3. Click "Cargar extensión sin empaquetar"
-# 4. Seleccionar carpeta dist/
+# Load in Chrome:
+# 1. Go to chrome://extensions
+# 2. Enable Developer Mode
+# 3. Click “Load unpacked” and select dist/
 ```
 
-## ✨ Características
+---
 
-### 🎯 Core Features
-- ✅ **Soporte Multi-Plataforma**: Amazon, eBay, AliExpress y 🇪🇸 **PcComponentes + MediaMarkt**
-- ✅ **Enhanced Generic Adapter (Whitelist)**: auto-extracción en +600 tiendas validadas (Fnac, Decathlon, Carrefour…)
-- ✅ **Generic Adapter (Manual)**: Trackea cualquier sitio mediante selección de precio
-- ✅ **Chequeo Automático**: Cada 6 horas
-- ✅ **Notificaciones**: Alertas cuando el precio baja >5%
-- ✅ **Gráficos de Historial**: Visualización temporal de precios con Chart.js
-- ✅ **Dark Mode**: Tema claro/oscuro (gráficos adaptativos)
+## ✨ Features
 
-### 🔧 Technical Features
-- ✅ **Service Worker ESM** + Content Script con gating SPA-aware (`resolveSupportMode`)
-- ✅ **Extractor de metadatos (DOM real)**: JSON-LD → OG/Twitter → H1/title → fallback limpio
-- ✅ **Detector e-commerce**: señales combinadas + blacklist para no inyectar en Google/YouTube/etc.
-- ✅ **Price Picker Visual**: Estados `idle → extracting → added/error` y badge por tier
-- ✅ **Rate Limiting**: Backoff exponencial por dominio (1m → 5m → 30m → 2h)
-- ✅ **Storage híbrido**: chrome.storage.local minimalista + hooks para backend Firebase
-- ✅ **Afiliados seguros**: placeholders via `.env` + `esbuild.define`, sin secretos en runtime
+- **Tiered adapters**
+  - Tier 1: Dedicated adapters (Amazon, eBay, AliExpress, PC Componentes, MediaMarkt)
+  - Tier 2: Enhanced Generic Adapter with whitelist (600+ stores) and cascading extraction (JSON-LD → OG/Twitter → platform selectors → heuristics)
+  - Tier 3: Manual Generic Adapter + price picker fallback for any site
+- **Manual tracking built for MV3** – `createDocument` (linkedom) replaces `DOMParser`, so the service worker can parse selected HTML safely.
+- **Reusable StubAdapter** – AWIN, Belboon, and TradeTracker share a single no-op adapter with clear error messaging.
+- **Store-aware popup cards** – manual and whitelist entries show the actual store name (`storeName`) instead of the adapter key.
+- **Automatic checks** – runs every 6 hours with exponential backoff per domain (1 min → 5 min → 30 min → 2 h) to avoid bans.
+- **Notifications & charts** – configurable drop threshold (default 5%), Chart.js history, light/dark mode.
+- **Firebase hooks (optional)** – anonymous auth + Firestore integration for shared history; the extension still works offline when Firebase vars are empty.
+- **Performance benchmark** – `PRICECHECKER_PERF=true npx vitest run tests/performance/priceChecker.performance.test.ts` logs total time and ms/product (~1 s currently).
 
-## 📖 Documentación
+---
 
-- [**Setup & Testing Guide**](docs/README.md) - Instalación, uso y testing
-- [**Generic Adapter Guide**](docs/GENERIC_ADAPTER_GUIDE.md) - **NUEVO**: Cómo usar el tracker universal
-- [**Adapter Development Guide**](docs/README-ADAPTERS.md) - Cómo agregar nuevas plataformas
-- [**Firebase Setup Guide**](docs/FIREBASE_SETUP.md) - Configuración del backend Firebase
-- [**Backend Integration Changelog**](docs/CHANGELOG_BACKEND_INTEGRATION.md) - Detalles técnicos de la integración
-- [**Bug Fixes**](docs/BUG_FIX_MANIFEST_PERMISSIONS.md) - Fixes aplicados para Generic Adapter
+## 🧱 Architecture
 
-## 🏗️ Arquitectura
+### Adapter API
 
-### Patrón Adapter + sistema de tiers
-
-1. **Tier 1 (Specific)** – adapters dedicados para Amazon, eBay, AliExpress, PcComponentes y MediaMarkt.
-2. **Tier 2 (Whitelist)** – `EnhancedGenericAdapter` aplica cascada `JSON-LD → OG/Twitter → Shopify/Presta/Woo/Magento → patrones genéricos`.
-3. **Tier 3 (Manual)** – `GenericAdapter` + Price Picker universal como red de seguridad.
-
-Cada adapter implementa `PriceAdapter`:
-
-```typescript
+```ts
 interface PriceAdapter {
   name: string;
   enabled: boolean;
   canHandle(url: string): boolean;
-  extractData(html: string): Promise<ExtractedProductData>;
+  extractData(
+    html: string,
+    customSelector?: string
+  ): Promise<ExtractedProductData>;
   generateAffiliateUrl(url: string): string;
 }
 ```
 
-### Rate Limiting
+`src/adapters/registry.ts` exposes helper APIs (`getAdapterForUrl`, `getTierInfo`, `getBadgeInfo`, `isSupportedSite`) for both the service worker and content script.
 
-Backoff exponencial por dominio:
+### Storage & Rate Limiting
 
-- 1er fallo: 1 minuto
-- 2do fallo: 5 minutos
-- 3er fallo: 30 minutos
-- 4to+ fallo: 2 horas
+- One Chrome storage key per product (`product_<id>`); rate-limit buckets stored as `rateLimit_<domain>`.
+- `StorageManager.migrateLegacyFormat` moves old aggregated data (`priceTrackerData`) into individual keys.
+- Rate limiting uses exponential backoff persisted per domain (1m/5m/30m/120m).
 
-### Ejecución Serial (MVP)
+### Execution
 
-Los chequeos se ejecutan serialmente (1 producto/segundo). Hooks preparados para paralelización futura.
+- `PriceChecker.checkAllProducts` runs serially with `sleep(1000)` between products; good enough today, benchmark ensures we know the cost (~50 products ≈ 50 seconds).
+- Hooks call `updatePriceInBackend` asynchronously; manual tracking persists selectors + store names for future runs.
 
-## 🛠️ Stack Técnico
+---
 
-- **TypeScript** (strict mode)
-- **esbuild** (bundling)
-- **Chrome APIs** (Storage Local, Alarms, Notifications)
-- **Firebase** (Firestore + Anonymous Auth)
-- **linkedom** (parser HTML en service worker)
-- **Chart.js** (visualización del historial de precios)
+## 🛠 Tech Stack
 
-## 📁 Estructura del Proyecto
+- TypeScript (strict)
+- esbuild (ESM bundles)
+- linkedom (HTML parsing in service worker)
+- Chart.js (popup charts)
+- Vitest + jsdom (testing + coverage)
+- Firebase SDK (optional backend)
+
+---
+
+## 📁 Project Layout
 
 ```
 src/
-├── core/              # Lógica de negocio
-├── adapters/          # Patrón adapter para plataformas
-├── backend/           # Firebase integration (Firestore + Auth)
-├── popup/             # UI del popup
-├── utils/             # Utilidades
-├── service-worker.ts  # Orquestación background
-├── content-script.ts  # Inyección de botón
-└── manifest.json      # Manifest V3
+├── adapters/             # specific adapters + enhanced/generic/stub + registry
+├── backend/              # Firebase helpers
+├── core/                 # PriceChecker, StorageManager, RateLimiter, NotificationManager
+├── config/               # supported sites + ENV helpers
+├── popup/                # popup logic, styles, HTML
+├── utils/                # htmlParser, metadataExtractor, priceParser, logger, date utils
+├── content-script.ts     # injects button + price picker orchestration
+├── service-worker.ts     # background message router + tracking flows
+└── manifest.json         # MV3 config
 ```
+
+Docs: `docs/README.md`, `docs/README-ADAPTERS.md`, `docs/GENERIC_ADAPTER_GUIDE.md`, `docs/FIREBASE_SETUP.md`, `auditoria*.md` (audit reports), plus targeted bug-fix notes in `docs/BUG_FIX_*`.
+
+---
 
 ## 🧪 Testing
 
-### Run Tests
+| Command                                                                                    | Description                                                               |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `npm run lint`                                                                             | ESLint on `src/` + `tests/` with autofix.                                 |
+| `npm test`                                                                                 | Vitest suite (unit + integration).                                        |
+| `npm run test:coverage`                                                                    | Coverage report + enforcement (≥60% lines/branches/functions/statements). |
+| `PRICECHECKER_PERF=true npx vitest run tests/performance/priceChecker.performance.test.ts` | Sequential performance benchmark (~1 s/product).                          |
+| `npm run ci`                                                                               | Lint → `tsc --noEmit` → tests → build (CI parity).                        |
 
-```bash
-# Run all tests
-npm test
+Chrome APIs are mocked in `src/test/setup.ts`. Coverage artifacts live in `coverage/`.
 
-# Run tests once (CI mode)
-npm run test:run
+---
 
-# Run tests with UI
-npm run test:ui
+## 🔐 Release Checklist
 
-# Run tests with coverage
-npm run test:coverage
-```
+1. `npm run build`
+2. Audit bundled credentials:
+   ```bash
+   rg -n "FIREBASE" dist/popup/popup.js dist/service-worker.js
+   rg -n "AFFILIATE" dist/popup/popup.js
+   ```
+   Current production builds include `pricewatch-21` (Amazon) and Firebase project `price-history-tracker-34724`; replace/mask before publishing if needed.
+3. Verify `dist/manifest.json` host permissions/content script matches.
+4. Zip `dist/` and upload to the Chrome Web Store.
 
-### Test Coverage
+---
 
-**Current coverage: 60%+ (core logic)** ✅  
-**Target achieved**: >60% coverage enforced in CI
+## 📝 Environment Variables
 
-**Test Suites:**
-
-- ✅ **Unit Tests**: Adapters (Amazon, eBay, AliExpress)
-- ✅ **Unit Tests**: Core logic (Storage, PriceChecker, RateLimiter)
-- ✅ **Integration Tests**: End-to-end product flows
-- ✅ **CI Pipeline**: Automated testing on every push/PR
-
-### Test Infrastructure
-
-- **Framework**: Vitest with jsdom environment
-- **Coverage**: Istanbul/v8 with 60% threshold enforcement
-- **Chrome Mocks**: Complete Chrome API mocking for extension testing
-- **CI/CD**: GitHub Actions with coverage reporting to Codecov
-
-### Coverage Breakdown
+Copy `.env.example` → `.env` and fill only what you need (empty strings are OK):
 
 ```
-✅ Adapters: Amazon, eBay, AliExpress (100%+)
-✅ Core: Storage, PriceChecker, RateLimiter (80%+)
-✅ Integration: Product addition & checking flows (70%+)
-✅ Utilities: Price parsing, URL utils (90%+)
-```
-
-### Quality Assurance
-
-**Code Audit Results:** ✅ **PASSED**
-
-- **Linting:** 0 errors, 0 warnings
-- **Type Checking:** Strict TypeScript compilation
-- **Security:** No vulnerabilities detected
-- **Performance:** Bundle sizes optimized
-- **Memory:** No leaks detected
-- **Coverage:** >60% maintained in CI
-
-See [Complete Audit Report](docs/AUDIT_REPORT.md) for detailed findings.
-
-## 🔧 Desarrollo
-
-### Watch Mode
-
-```bash
-npm run watch
-```
-
-### Linting
-
-```bash
-npm run lint
-```
-
-### CI Checks (Pre-commit)
-
-Run all pipeline checks locally before pushing:
-
-```bash
-npm run ci
-```
-
-This executes the same checks as GitHub Actions:
-
-- Linting (source + tests)
-- TypeScript type checking
-- Unit tests execution
-- Build verification
-
-## 📝 Variables de Entorno
-
-1. Copia `.env.example` a `.env`.
-2. Rellena únicamente los IDs reales que vayas a usar (el resto pueden quedarse vacíos).
-3. Esbuild inyecta los valores mediante `define`, así que nada de `process.env` llega al runtime del worker.
-
-```env
-# Affiliate IDs
-AFFILIATE_AMAZON_TAG=tu-tag-amazon
+AFFILIATE_AMAZON_TAG=
 AFFILIATE_EBAY_ID=
 AFFILIATE_ADMITAD_ID=
 
-# Firebase (opcional - ver docs/FIREBASE_SETUP.md)
 FIREBASE_API_KEY=
+FIREBASE_AUTH_DOMAIN=
 FIREBASE_PROJECT_ID=
 FIREBASE_STORAGE_BUCKET=
 FIREBASE_MESSAGING_SENDER_ID=
 FIREBASE_APP_ID=
 ```
 
-> ℹ️ Puedes dejar Firebase vacío y la extensión funcionará en modo local-only. Los hooks del backend sólo se activan cuando la configuración está completa.
+esbuild injects these values via `define`, so the runtime never touches `process.env`.
 
-## 🎯 Roadmap
+---
 
-- [ ] Paralelización de chequeos con control de concurrencia
-- [x] Backend sync para historial compartido ✅
-- [x] Gráficos de historial de precios ✅
-- [x] Storage optimizado (chrome.storage.local) ✅
-- [ ] Umbrales de notificación personalizados por producto
-- [ ] Export/import de productos trackeados
-- [ ] Badge con contador de ahorros
-- [ ] Cloud Functions para validación y rate limiting
-- [ ] Sincronización offline-first
+## 🤝 Contributing
 
-## 📄 Licencia
+1. Fork & clone the repo.
+2. `npm install`
+3. Run `npm run lint && npm test`.
+4. Add/adapt adapters and logic with accompanying tests.
+5. Open a PR referencing any related audit/task.
 
-MIT
+---
 
-## 🤝 Contribuir
+## 📄 License
 
-Ver [Adapter Development Guide](docs/README-ADAPTERS.md) para agregar nuevas plataformas.
+MIT — see [LICENSE](LICENSE).
 
-## 📧 Soporte
+---
 
-Para issues o preguntas, abrir un issue en GitHub.
+## 📬 Support
+
+Please open an issue for bugs, adapter requests, or questions about manual tracking/build steps.
