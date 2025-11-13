@@ -41,17 +41,23 @@ const SUCCESS_GRADIENT = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
 const ERROR_GRADIENT = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
 
 const pricePicker = new PricePicker();
+const BUTTON_COLLAPSE_KEY = 'phtButtonCollapsed';
 
 let trackButton: HTMLButtonElement | null = null;
 let buttonLabelEl: HTMLSpanElement | null = null;
 let buttonBadgeEl: HTMLSpanElement | null = null;
+let buttonWrapper: HTMLDivElement | null = null;
+let collapseToggleEl: HTMLButtonElement | null = null;
+let collapsedFabEl: HTMLButtonElement | null = null;
 let currentMode: SupportMode = 'none';
 let lastUrl = window.location.href;
+let isButtonCollapsed = false;
 
 /**
  * Entry point
  */
-function initContentScript() {
+async function initContentScript() {
+  await loadButtonPreferences();
   evaluateSupportMode(true);
   observeSpaNavigation();
   sendPingToServiceWorker();
@@ -63,9 +69,15 @@ function initContentScript() {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initContentScript, { once: true });
+  document.addEventListener(
+    'DOMContentLoaded',
+    () => {
+      void initContentScript();
+    },
+    { once: true },
+  );
 } else {
-  initContentScript();
+  void initContentScript();
 }
 
 function evaluateSupportMode(force = false) {
@@ -103,14 +115,22 @@ function ensureTrackButton() {
     return;
   }
 
+  buttonWrapper = document.createElement('div');
+  buttonWrapper.id = 'price-tracker-wrapper';
+  buttonWrapper.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 2147483645;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  `;
+
   trackButton = document.createElement('button');
   trackButton.id = 'price-tracker-btn';
   trackButton.type = 'button';
   trackButton.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 2147483645;
     padding: 14px 20px;
     background: ${PRIMARY_GRADIENT};
     color: #fff;
@@ -126,6 +146,7 @@ function ensureTrackButton() {
     align-items: center;
     gap: 10px;
     min-width: 220px;
+    position: relative;
   `;
 
   buttonLabelEl = document.createElement('span');
@@ -158,21 +179,78 @@ function ensureTrackButton() {
   });
 
   trackButton.addEventListener('click', () => {
+    if (isButtonCollapsed) {
+      void setButtonCollapsedState(false);
+      return;
+    }
     void handleTrackPrice();
+  });
+
+  collapseToggleEl = document.createElement('button');
+  collapseToggleEl.type = 'button';
+  collapseToggleEl.title = 'Ocultar botón';
+  collapseToggleEl.textContent = '–';
+  collapseToggleEl.style.cssText = `
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  `;
+  collapseToggleEl.addEventListener('click', event => {
+    event.stopPropagation();
+    void setButtonCollapsedState(true);
+  });
+
+  collapsedFabEl = document.createElement('button');
+  collapsedFabEl.type = 'button';
+  collapsedFabEl.title = 'Mostrar Price Tracker';
+  collapsedFabEl.textContent = '📈';
+  collapsedFabEl.style.cssText = `
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    border: none;
+    background: ${PRIMARY_GRADIENT};
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    display: none;
+    align-items: center;
+    justify-content: center;
+  `;
+  collapsedFabEl.addEventListener('click', () => {
+    void setButtonCollapsedState(false);
   });
 
   trackButton.appendChild(buttonLabelEl);
   trackButton.appendChild(buttonBadgeEl);
-  document.body.appendChild(trackButton);
+  trackButton.appendChild(collapseToggleEl);
+  buttonWrapper.appendChild(trackButton);
+  buttonWrapper.appendChild(collapsedFabEl);
+  document.body.appendChild(buttonWrapper);
+  updateCollapsedPresentation();
 }
 
 function removeTrackButton() {
-  if (trackButton) {
-    trackButton.remove();
+  if (buttonWrapper) {
+    buttonWrapper.remove();
   }
+  buttonWrapper = null;
   trackButton = null;
   buttonLabelEl = null;
   buttonBadgeEl = null;
+  collapseToggleEl = null;
+  collapsedFabEl = null;
 }
 
 function updateButtonBadge() {
@@ -445,5 +523,52 @@ async function sendPingToServiceWorker() {
     logger.warn('Failed to send initial ping to service worker', {
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+}
+
+async function loadButtonPreferences(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(BUTTON_COLLAPSE_KEY);
+    isButtonCollapsed = Boolean(stored[BUTTON_COLLAPSE_KEY]);
+  } catch (error) {
+    isButtonCollapsed = false;
+    logger.warn('Unable to read button preference', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function setButtonCollapsedState(collapsed: boolean): Promise<void> {
+  if (isButtonCollapsed === collapsed) {
+    updateCollapsedPresentation();
+    return;
+  }
+
+  isButtonCollapsed = collapsed;
+
+  try {
+    await chrome.storage.local.set({ [BUTTON_COLLAPSE_KEY]: collapsed });
+  } catch (error) {
+    logger.warn('Unable to persist button preference', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  updateCollapsedPresentation();
+}
+
+function updateCollapsedPresentation() {
+  if (!trackButton || !collapseToggleEl || !collapsedFabEl) {
+    return;
+  }
+
+  if (isButtonCollapsed) {
+    trackButton.style.display = 'none';
+    collapseToggleEl.style.display = 'none';
+    collapsedFabEl.style.display = 'flex';
+  } else {
+    trackButton.style.display = 'flex';
+    collapseToggleEl.style.display = 'flex';
+    collapsedFabEl.style.display = 'none';
   }
 }
