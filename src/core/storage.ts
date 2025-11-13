@@ -12,7 +12,7 @@
 import type { StorageData, TrackedProduct, ExtensionConfig, RateLimitBucket } from './types';
 import { logger } from '../utils/logger';
 import { ENV } from '../config/env';
-import { PERCENTAGES, LIMITS, STORAGE_KEYS } from '../shared/constants';
+import { PERCENTAGES, LIMITS } from '../shared/constants';
 
 function filterUndefinedValues<T extends object>(obj: T): T {
   const cleaned = Object.entries(obj).reduce<Record<string, unknown>>((acc, [key, value]) => {
@@ -54,6 +54,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
   config: DEFAULT_CONFIG,
   lastCheckTime: 0,
 };
+
+const LEGACY_AGGREGATED_STORAGE_KEY = 'priceTrackerData';
 
 function sanitizeProduct(product: TrackedProduct): TrackedProduct {
   return filterUndefinedValues(product);
@@ -422,9 +424,8 @@ export class StorageManager {
    */
   static async migrateLegacyFormat(): Promise<void> {
     try {
-      const legacyKey = STORAGE_KEYS.PRICE_TRACKER_DATA;
-      const legacyPayload = await chrome.storage.local.get(legacyKey);
-      const legacyData = legacyPayload[legacyKey] as StorageData | undefined;
+      const legacyPayload = await chrome.storage.local.get(LEGACY_AGGREGATED_STORAGE_KEY);
+      const legacyData = legacyPayload[LEGACY_AGGREGATED_STORAGE_KEY] as StorageData | undefined;
       if (!legacyData?.products?.length) {
         return;
       }
@@ -447,7 +448,7 @@ export class StorageManager {
         await chrome.storage.local.set({ [productKey(sanitized.id)]: sanitized });
       }
 
-      await chrome.storage.local.remove(legacyKey);
+      await chrome.storage.local.remove(LEGACY_AGGREGATED_STORAGE_KEY);
       logger.info('Legacy storage migration completed');
     } catch (error) {
       logger.error('Failed to migrate legacy storage format', error);

@@ -8,6 +8,7 @@ import type { ExtractedProductData } from '../../core/types';
 import { logger } from '../../utils/logger';
 import { parseGenericPrice } from '../../utils/priceParser';
 import { extractTitle, extractImage } from '../../utils/metadataExtractor';
+import { createDocument } from '../../utils/htmlParser';
 
 export class GenericAdapter implements PriceAdapter {
   name = 'generic';
@@ -42,9 +43,8 @@ export class GenericAdapter implements PriceAdapter {
         };
       }
 
-      // Parse HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
+      // Parse HTML in service worker safe way
+      const doc = createDocument(html);
 
       // Extract price using custom selector
       const priceElement = doc.querySelector(customSelector);

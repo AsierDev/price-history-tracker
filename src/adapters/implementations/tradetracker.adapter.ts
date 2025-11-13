@@ -3,33 +3,14 @@
  * TODO: Implement when TradeTracker integration is ready
  */
 
-import type { PriceAdapter } from '../types';
-import type { ExtractedProductData } from '../../core/types';
+import { StubAdapter } from './stub.adapter';
 
-export class TradeTrackerAdapter implements PriceAdapter {
-  name = 'tradetracker';
-  affiliateNetworkId = 'tradetracker';
-  enabled = false; // 🟡 STUB - Set to true when ready
-  urlPatterns: RegExp[] = [];
-
-  canHandle(_url: string): boolean {
-    return false;
-  }
-
-  async extractData(_html: string, _customSelector?: string): Promise<ExtractedProductData> {
-    return {
-      title: 'Product',
-      price: 0,
-      currency: 'EUR',
-      available: false,
-      error: 'TradeTracker adapter not implemented yet',
-    };
-  }
-
-  generateAffiliateUrl(url: string): string {
-    // TODO: Implement TradeTracker URL generation
-    // const clientId = ENV.TRADETRACKER_CLIENT_ID;
-    // return `https://tc.tradetracker.net/?c=${clientId}&m=...&a=...&u=${encodeURIComponent(url)}`;
-    return url;
+export class TradeTrackerAdapter extends StubAdapter {
+  constructor() {
+    super({
+      name: 'tradetracker',
+      affiliateNetworkId: 'tradetracker',
+      errorMessage: 'TradeTracker adapter not implemented yet',
+    });
   }
 }

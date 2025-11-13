@@ -18,16 +18,19 @@ function detectCurrentTier() {
     if (response) {
       console.log('📊 Tier detectado:', response);
       console.log(`🏷️ Tier: ${response.tier}`);
-      console.log(`📝 Nombre: ${response.name}`);
+      console.log(`🏅 Label: ${response.label}`);
       console.log(`📄 Descripción: ${response.description}`);
-      console.log(`🔧 Adapter: ${response.adapter?.name || 'N/A'}`);
+      console.log(`🏬 Sitio: ${response.siteName || 'N/A'}`);
+      console.log(`🔧 Adapter: ${response.adapterName || 'N/A'}`);
       
       // Obtener badge info
       chrome.runtime.sendMessage({ action: 'getBadgeInfo', url }, (badgeResponse) => {
         if (badgeResponse) {
           console.log('🎨 Badge info:', badgeResponse);
           console.log(`🏷️ Texto: ${badgeResponse.text}`);
-          console.log(`🎨 Color: ${badgeResponse.backgroundColor}`);
+          console.log(`🎨 Tono: ${badgeResponse.tone}`);
+          console.log(`😀 Emoji: ${badgeResponse.emoji}`);
+          console.log(`🔢 Nivel: ${badgeResponse.level}`);
         }
       });
     } else {
@@ -45,7 +48,6 @@ function testAdapterSelection() {
     if (response) {
       console.log('✅ Adapter seleccionado:', response);
       console.log(`🔧 Nombre: ${response.name}`);
-      console.log(`🏷️ Tipo: ${response.constructor.name}`);
     } else {
       console.error('❌ Error al obtener adapter');
     }

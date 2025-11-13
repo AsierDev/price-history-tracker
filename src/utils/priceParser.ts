@@ -4,6 +4,7 @@
  */
 
 import { logger } from './logger';
+import { createDocument } from './htmlParser';
 
 export interface ParsedPrice {
   price: number;
@@ -196,8 +197,7 @@ export function looksLikePrice(text: string): boolean {
  */
 export function extractPriceFromHTML(html: string, selector: string): ParsedPrice | null {
   try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const doc = createDocument(html);
 
     const element = doc.querySelector(selector);
     if (!element) {

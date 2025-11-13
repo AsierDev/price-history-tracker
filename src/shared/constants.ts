@@ -2,13 +2,8 @@
  * Application constants
  */
 
-export const STORAGE_KEYS = {
-  PRICE_TRACKER_DATA: 'priceTrackerData',
-} as const;
-
 export const LIMITS = {
   MAX_PRODUCTS: 50,
-  MAX_HISTORY_ENTRIES: 50,
   PRICE_CHECK_INTERVAL_MINUTES: 360, // 6 hours
 } as const;
 
