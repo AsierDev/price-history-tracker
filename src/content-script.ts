@@ -42,16 +42,26 @@ const ERROR_GRADIENT = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
 
 const pricePicker = new PricePicker();
 const BUTTON_COLLAPSE_KEY = 'phtButtonCollapsed';
+const BUTTON_LABEL_HINT_KEY = 'phtButtonLabelHintShown';
+const BUTTON_STYLE_ID = 'price-tracker-styles';
 
 let trackButton: HTMLButtonElement | null = null;
+let buttonLabelContainer: HTMLSpanElement | null = null;
 let buttonLabelEl: HTMLSpanElement | null = null;
 let buttonBadgeEl: HTMLSpanElement | null = null;
+let buttonIconEl: HTMLSpanElement | null = null;
+let buttonTooltipEl: HTMLDivElement | null = null;
 let buttonWrapper: HTMLDivElement | null = null;
 let collapseToggleEl: HTMLButtonElement | null = null;
 let collapsedFabEl: HTMLButtonElement | null = null;
 let currentMode: SupportMode = 'none';
 let lastUrl = window.location.href;
 let isButtonCollapsed = false;
+let hasShownLabelHint = false;
+let labelHintTimeout: number | null = null;
+let labelHintActive = false;
+let forcedLabelActive = false;
+let currentButtonState: ButtonState = 'idle';
 
 /**
  * Entry point
@@ -91,7 +101,7 @@ function evaluateSupportMode(force = false) {
   });
 
   if (!force && nextMode === currentMode) {
-    updateButtonBadge();
+    updateButtonPresentation();
     return;
   }
 
@@ -104,7 +114,7 @@ function evaluateSupportMode(force = false) {
 
   ensureTrackButton();
   setButtonState('idle');
-  updateButtonBadge();
+  updateButtonPresentation();
 }
 
 /**
@@ -115,68 +125,36 @@ function ensureTrackButton() {
     return;
   }
 
+  injectFloatingButtonStyles();
+
   buttonWrapper = document.createElement('div');
   buttonWrapper.id = 'price-tracker-wrapper';
-  buttonWrapper.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    z-index: 2147483645;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  `;
+  buttonWrapper.dataset.collapsed = 'false';
 
   trackButton = document.createElement('button');
   trackButton.id = 'price-tracker-btn';
   trackButton.type = 'button';
-  trackButton.style.cssText = `
-    padding: 14px 20px;
-    background: ${PRIMARY_GRADIENT};
-    color: #fff;
-    border: none;
-    border-radius: 28px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 220px;
-    position: relative;
-  `;
+  trackButton.dataset.labelState = 'none';
+
+  buttonIconEl = document.createElement('span');
+  buttonIconEl.className = 'pht-icon';
+  buttonIconEl.textContent = iconForCurrentMode();
+
+  buttonLabelContainer = document.createElement('span');
+  buttonLabelContainer.className = 'pht-label';
 
   buttonLabelEl = document.createElement('span');
-  buttonLabelEl.className = 'pht-label';
+  buttonLabelEl.className = 'pht-label-text';
   buttonLabelEl.textContent = labelForCurrentMode();
 
   buttonBadgeEl = document.createElement('span');
   buttonBadgeEl.className = 'pht-badge';
-  buttonBadgeEl.style.cssText = `
-    background: rgba(255, 255, 255, 0.15);
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-  `;
 
-  trackButton.addEventListener('mouseenter', () => {
-    if (trackButton) {
-      trackButton.style.transform = 'translateY(-2px)';
-      trackButton.style.boxShadow = '0 10px 22px rgba(0, 0, 0, 0.25)';
-    }
-  });
+  buttonLabelContainer.appendChild(buttonLabelEl);
+  buttonLabelContainer.appendChild(buttonBadgeEl);
 
-  trackButton.addEventListener('mouseleave', () => {
-    if (trackButton) {
-      trackButton.style.transform = 'translateY(0)';
-      trackButton.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.2)';
-    }
-  });
+  trackButton.appendChild(buttonIconEl);
+  trackButton.appendChild(buttonLabelContainer);
 
   trackButton.addEventListener('click', () => {
     if (isButtonCollapsed) {
@@ -186,59 +164,57 @@ function ensureTrackButton() {
     void handleTrackPrice();
   });
 
+  trackButton.addEventListener('mouseenter', showTooltip);
+  trackButton.addEventListener('mouseleave', hideTooltip);
+  trackButton.addEventListener('focus', showTooltip);
+  trackButton.addEventListener('blur', hideTooltip);
+  trackButton.addEventListener(
+    'touchstart',
+    () => {
+      showTooltip();
+      window.setTimeout(() => hideTooltip(), 1600);
+    },
+    { passive: true },
+  );
+
   collapseToggleEl = document.createElement('button');
+  collapseToggleEl.id = 'price-tracker-hide';
   collapseToggleEl.type = 'button';
-  collapseToggleEl.title = 'Ocultar botón';
-  collapseToggleEl.textContent = '–';
-  collapseToggleEl.style.cssText = `
-    position: absolute;
-    top: -12px;
-    right: -12px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  `;
+  collapseToggleEl.title = 'Ocultar botón flotante';
+  collapseToggleEl.setAttribute('aria-label', 'Ocultar botón flotante');
+  collapseToggleEl.textContent = 'Ocultar';
   collapseToggleEl.addEventListener('click', event => {
     event.stopPropagation();
     void setButtonCollapsedState(true);
   });
 
   collapsedFabEl = document.createElement('button');
+  collapsedFabEl.id = 'price-tracker-collapsed';
   collapsedFabEl.type = 'button';
-  collapsedFabEl.title = 'Mostrar Price Tracker';
+  collapsedFabEl.title = 'Mostrar control de precios';
+  collapsedFabEl.setAttribute('aria-label', 'Mostrar control de precios');
   collapsedFabEl.textContent = '📈';
-  collapsedFabEl.style.cssText = `
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
-    border: none;
-    background: ${PRIMARY_GRADIENT};
-    color: #fff;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-    display: none;
-    align-items: center;
-    justify-content: center;
-  `;
   collapsedFabEl.addEventListener('click', () => {
     void setButtonCollapsedState(false);
   });
 
-  trackButton.appendChild(buttonLabelEl);
-  trackButton.appendChild(buttonBadgeEl);
-  trackButton.appendChild(collapseToggleEl);
+  buttonTooltipEl = document.createElement('div');
+  buttonTooltipEl.id = 'price-tracker-tooltip';
+  buttonTooltipEl.setAttribute('role', 'tooltip');
+  buttonTooltipEl.dataset.visible = 'false';
+  trackButton.setAttribute('aria-describedby', buttonTooltipEl.id);
+
   buttonWrapper.appendChild(trackButton);
+  buttonWrapper.appendChild(collapseToggleEl);
   buttonWrapper.appendChild(collapsedFabEl);
+  buttonWrapper.appendChild(buttonTooltipEl);
   document.body.appendChild(buttonWrapper);
+
+  updateButtonPresentation();
   updateCollapsedPresentation();
+  if (!hasShownLabelHint && !isButtonCollapsed) {
+    maybeShowIntroLabel();
+  }
 }
 
 function removeTrackButton() {
@@ -247,71 +223,173 @@ function removeTrackButton() {
   }
   buttonWrapper = null;
   trackButton = null;
+  buttonLabelContainer = null;
   buttonLabelEl = null;
   buttonBadgeEl = null;
+  buttonIconEl = null;
+  buttonTooltipEl = null;
   collapseToggleEl = null;
   collapsedFabEl = null;
+  forcedLabelActive = false;
+  labelHintActive = false;
+  currentButtonState = 'idle';
+  if (labelHintTimeout) {
+    window.clearTimeout(labelHintTimeout);
+    labelHintTimeout = null;
+  }
 }
 
-function updateButtonBadge() {
-  if (!trackButton || !buttonBadgeEl) return;
+function updateButtonPresentation() {
+  if (!trackButton) return;
 
-  if (currentMode === 'manual') {
-    buttonBadgeEl.textContent = '📍 Manual';
-  } else {
-    const badgeInfo = getBadgeInfo(window.location.href);
-    buttonBadgeEl.textContent = `${badgeInfo.emoji} ${badgeInfo.text}`;
+  if (buttonBadgeEl) {
+    if (currentMode === 'manual') {
+      buttonBadgeEl.textContent = 'Modo manual';
+      buttonBadgeEl.dataset.tone = 'warning';
+    } else {
+      const badgeInfo = getBadgeInfo(window.location.href);
+      buttonBadgeEl.textContent = `${badgeInfo.emoji} ${badgeInfo.text}`;
+      buttonBadgeEl.dataset.tone = badgeInfo.tone;
+    }
+
+    const hasText = Boolean(buttonBadgeEl.textContent?.trim());
+    buttonBadgeEl.style.display = hasText ? 'inline-flex' : 'none';
+  }
+
+  if (buttonLabelEl && currentButtonState === 'idle') {
+    buttonLabelEl.textContent = labelForCurrentMode();
+  }
+
+  if (buttonIconEl && currentButtonState === 'idle') {
+    buttonIconEl.textContent = iconForCurrentMode();
   }
 
   trackButton.dataset.mode = currentMode;
+  updateButtonAccessibility();
 }
 
 function labelForCurrentMode(): string {
   if (currentMode === 'manual') {
     return 'Seleccionar precio';
   }
-  if (currentMode === 'whitelist') {
-    return 'Auto (whitelist)';
+  return 'Trackear precio';
+}
+
+function iconForCurrentMode(): string {
+  if (currentMode === 'manual') {
+    return '🖱️';
   }
-  if (currentMode === 'specific') {
-    return 'Auto (tienda)';
+  return '📈';
+}
+
+function tooltipTextForCurrentMode(): string {
+  if (currentMode === 'manual') {
+    return 'Seleccionar el precio en la página';
   }
-  return 'Seguir precio';
+  return 'Trackear el precio de este producto';
 }
 
 function setButtonState(state: ButtonState, message?: string) {
-  if (!trackButton || !buttonLabelEl) return;
+  if (!trackButton || !buttonLabelEl || !buttonIconEl) return;
+
+  currentButtonState = state;
+
+  if (state === 'idle') {
+    trackButton.disabled = false;
+    trackButton.style.opacity = '1';
+    trackButton.style.background = PRIMARY_GRADIENT;
+    forcedLabelActive = false;
+    if (!labelHintActive) {
+      setLabelState('none');
+    }
+    buttonIconEl.textContent = iconForCurrentMode();
+    buttonLabelEl.textContent = labelForCurrentMode();
+    updateButtonPresentation();
+    return;
+  }
+
+  forcedLabelActive = true;
+  setLabelState('state');
+  trackButton.disabled = true;
+  trackButton.style.opacity = '0.9';
 
   switch (state) {
-    case 'idle':
-      trackButton.disabled = false;
-      trackButton.style.opacity = '1';
-      trackButton.style.background = PRIMARY_GRADIENT;
-      buttonLabelEl.textContent = labelForCurrentMode();
-      break;
     case 'extracting':
-      trackButton.disabled = true;
-      trackButton.style.opacity = '0.85';
+      trackButton.style.background = PRIMARY_GRADIENT;
+      buttonIconEl.textContent = '⏳';
       buttonLabelEl.textContent = message ?? 'Extrayendo precio...';
       break;
     case 'selecting':
-      trackButton.disabled = true;
-      trackButton.style.opacity = '0.85';
+      trackButton.style.background = PRIMARY_GRADIENT;
+      buttonIconEl.textContent = '🖱️';
       buttonLabelEl.textContent = message ?? 'Haz clic sobre el precio…';
       break;
     case 'added':
-      trackButton.disabled = true;
       trackButton.style.background = SUCCESS_GRADIENT;
+      buttonIconEl.textContent = '✅';
       buttonLabelEl.textContent = message ?? 'Producto añadido ✅';
-      setTimeout(() => setButtonState('idle'), 2000);
+      window.setTimeout(() => setButtonState('idle'), 2000);
       break;
     case 'error':
-      trackButton.disabled = true;
       trackButton.style.background = ERROR_GRADIENT;
+      buttonIconEl.textContent = '⚠️';
       buttonLabelEl.textContent = message ?? 'No se pudo añadir';
-      setTimeout(() => setButtonState('idle'), 2500);
+      window.setTimeout(() => setButtonState('idle'), 2500);
       break;
   }
+}
+
+type LabelState = 'none' | 'hint' | 'state';
+
+function setLabelState(state: LabelState) {
+  if (!trackButton) return;
+  trackButton.dataset.labelState = state;
+}
+
+function maybeShowIntroLabel() {
+  if (!trackButton || labelHintActive || hasShownLabelHint) {
+    return;
+  }
+
+  labelHintActive = true;
+  setLabelState('hint');
+  if (labelHintTimeout) {
+    window.clearTimeout(labelHintTimeout);
+  }
+  labelHintTimeout = window.setTimeout(() => {
+    labelHintActive = false;
+    if (!forcedLabelActive) {
+      setLabelState('none');
+    }
+  }, 3500);
+
+  if (!hasShownLabelHint) {
+    hasShownLabelHint = true;
+    void chrome.storage.local.set({ [BUTTON_LABEL_HINT_KEY]: true }).catch(() => {
+      // Ignore preference errors
+    });
+  }
+}
+
+function updateButtonAccessibility() {
+  if (!trackButton) return;
+  const tooltip = tooltipTextForCurrentMode();
+  trackButton.setAttribute('aria-label', tooltip);
+  trackButton.title = tooltip;
+  if (buttonTooltipEl) {
+    buttonTooltipEl.textContent = tooltip;
+    trackButton.setAttribute('aria-describedby', buttonTooltipEl.id);
+  }
+}
+
+function showTooltip() {
+  if (!buttonTooltipEl || isButtonCollapsed) return;
+  buttonTooltipEl.dataset.visible = 'true';
+}
+
+function hideTooltip() {
+  if (!buttonTooltipEl) return;
+  buttonTooltipEl.dataset.visible = 'false';
 }
 
 /**
@@ -353,7 +431,7 @@ async function handleAutomaticTracking() {
   if (adapter.requiresManualSelection) {
     logger.info('Adapter requires manual selection; switching flow');
     currentMode = 'manual';
-    updateButtonBadge();
+    updateButtonPresentation();
     await handleManualTracking();
     return;
   }
@@ -365,7 +443,7 @@ async function handleAutomaticTracking() {
     if (error instanceof Error && error.message === 'AUTO_EXTRACT_FAILED') {
       logger.warn('Auto extraction failed, falling back to manual selector');
       currentMode = 'manual';
-      updateButtonBadge();
+      updateButtonPresentation();
       await handleManualTracking();
       return;
     }
@@ -528,10 +606,12 @@ async function sendPingToServiceWorker() {
 
 async function loadButtonPreferences(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get(BUTTON_COLLAPSE_KEY);
+    const stored = await chrome.storage.local.get([BUTTON_COLLAPSE_KEY, BUTTON_LABEL_HINT_KEY]);
     isButtonCollapsed = Boolean(stored[BUTTON_COLLAPSE_KEY]);
+    hasShownLabelHint = Boolean(stored[BUTTON_LABEL_HINT_KEY]);
   } catch (error) {
     isButtonCollapsed = false;
+    hasShownLabelHint = false;
     logger.warn('Unable to read button preference', {
       error: error instanceof Error ? error.message : String(error),
     });
@@ -558,17 +638,178 @@ async function setButtonCollapsedState(collapsed: boolean): Promise<void> {
 }
 
 function updateCollapsedPresentation() {
-  if (!trackButton || !collapseToggleEl || !collapsedFabEl) {
+  if (!buttonWrapper) {
     return;
   }
 
+  buttonWrapper.dataset.collapsed = String(isButtonCollapsed);
   if (isButtonCollapsed) {
-    trackButton.style.display = 'none';
-    collapseToggleEl.style.display = 'none';
-    collapsedFabEl.style.display = 'flex';
-  } else {
-    trackButton.style.display = 'flex';
-    collapseToggleEl.style.display = 'flex';
-    collapsedFabEl.style.display = 'none';
+    hideTooltip();
   }
+}
+
+function injectFloatingButtonStyles() {
+  if (document.getElementById(BUTTON_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement('style');
+  style.id = BUTTON_STYLE_ID;
+  style.textContent = `
+    #price-tracker-wrapper {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 2147483645;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: calc(100vw - 32px);
+    }
+    #price-tracker-wrapper > * {
+      pointer-events: auto;
+    }
+    #price-tracker-btn {
+      background: ${PRIMARY_GRADIENT};
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 52px;
+      min-width: 52px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #price-tracker-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.25);
+    }
+    #price-tracker-btn:focus-visible,
+    #price-tracker-hide:focus-visible,
+    #price-tracker-collapsed:focus-visible {
+      outline: 3px solid rgba(255, 255, 255, 0.9);
+      outline-offset: 2px;
+    }
+    #price-tracker-btn .pht-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+    #price-tracker-btn .pht-label {
+      overflow: hidden;
+      max-width: 0;
+      opacity: 0;
+      margin-left: 0;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: max-width 0.25s ease, opacity 0.25s ease, margin-left 0.25s ease;
+      white-space: nowrap;
+    }
+    #price-tracker-btn[data-label-state="state"] .pht-label,
+    #price-tracker-btn[data-label-state="hint"] .pht-label,
+    #price-tracker-btn:hover .pht-label,
+    #price-tracker-btn:focus-visible .pht-label {
+      max-width: 220px;
+      opacity: 1;
+      margin-left: 8px;
+    }
+    #price-tracker-btn .pht-badge {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      align-self: flex-start;
+      color: #f8fafc;
+    }
+    #price-tracker-btn .pht-badge[data-tone="success"] {
+      background: rgba(16, 185, 129, 0.25);
+    }
+    #price-tracker-btn .pht-badge[data-tone="info"] {
+      background: rgba(59, 130, 246, 0.25);
+    }
+    #price-tracker-btn .pht-badge[data-tone="warning"] {
+      background: rgba(245, 158, 11, 0.3);
+    }
+    #price-tracker-hide {
+      background: rgba(15, 23, 42, 0.75);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+    #price-tracker-hide:hover {
+      background: rgba(15, 23, 42, 0.92);
+      transform: translateY(-1px);
+    }
+    #price-tracker-collapsed {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: ${PRIMARY_GRADIENT};
+      color: #fff;
+      font-size: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+      cursor: pointer;
+    }
+    #price-tracker-wrapper[data-collapsed="false"] #price-tracker-collapsed {
+      display: none;
+    }
+    #price-tracker-tooltip {
+      position: absolute;
+      bottom: 68px;
+      left: 0;
+      background: rgba(17, 24, 39, 0.95);
+      color: #fff;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      max-width: 240px;
+      line-height: 1.3;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.35);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+    #price-tracker-tooltip[data-visible="true"] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #price-tracker-wrapper[data-collapsed="true"] #price-tracker-btn,
+    #price-tracker-wrapper[data-collapsed="true"] #price-tracker-hide {
+      display: none;
+    }
+    #price-tracker-wrapper[data-collapsed="true"] #price-tracker-tooltip {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      #price-tracker-wrapper {
+        bottom: 16px;
+        left: 16px;
+      }
+    }
+  `;
+
+  const target = document.head || document.documentElement;
+  target.appendChild(style);
 }

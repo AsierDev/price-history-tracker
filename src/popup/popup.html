@@ -8,152 +8,175 @@
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
     <header class="header">
       <div class="header-title">
         <h1>💰 Price Tracker</h1>
-        <div class="header-status">
-          <span id="firebaseStatus" class="status-badge" title="Firebase status">⚪ Checking...</span>
-          <span id="lastUpdate" class="last-update" title="Last price check">Never updated</span>
-        </div>
+        <p class="header-subtitle">Seguimiento inteligente de precios</p>
       </div>
       <div class="header-actions">
-        <button id="settingsBtn" class="icon-btn" title="Settings">
+        <button id="settingsBtn" class="icon-btn" title="Configuración" aria-label="Abrir configuración">
           <span>⚙️</span>
         </button>
-        <button id="refreshBtn" class="icon-btn" title="Refresh prices">
+        <button id="refreshBtn" class="icon-btn" title="Actualizar precios" aria-label="Actualizar precios">
           <span>🔄</span>
         </button>
-        <button id="darkModeToggle" class="icon-btn" title="Toggle dark mode">
+        <button id="darkModeToggle" class="icon-btn" title="Cambiar tema" aria-label="Cambiar tema">
           <span>🌙</span>
         </button>
       </div>
     </header>
 
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat-item">
-        <span class="stat-label">Products</span>
+    <section class="kpi-row" aria-label="Indicadores clave">
+      <div class="kpi-card kpi-card--primary">
+        <span class="stat-label">Productos activos</span>
         <span class="stat-value" id="totalProducts">0</span>
       </div>
-      <div class="stat-item">
-        <span class="stat-label">Total Savings</span>
+      <div class="kpi-card">
+        <div class="stat-label with-helper">
+          <span>Ahorro acumulado</span>
+          <button type="button" class="info-btn" aria-label="Explicación del ahorro acumulado" title="Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio).">ℹ️</button>
+        </div>
         <span class="stat-value" id="totalSavings">0€</span>
+        <p class="stat-helper" id="savingsHelper">Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio).</p>
       </div>
+      <div class="kpi-card kpi-card--meta">
+        <span class="stat-label">Estado conexión</span>
+        <div class="status-stack">
+          <span id="firebaseStatus" class="status-badge" title="Estado de Firebase">⚪ Comprobando...</span>
+          <span id="lastUpdate" class="last-update" title="Última actualización">Nunca</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="filters-row">
+      <div class="search-box">
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Buscar productos..."
+          aria-label="Buscar productos"
+          autocomplete="off"
+        >
+      </div>
+      <label class="sort-control" for="sortSelect">
+        <span>Ordenar por</span>
+        <select id="sortSelect" aria-label="Ordenar lista de productos">
+          <option value="date" selected>Fecha añadido (recientes)</option>
+          <option value="store">Tienda / dominio</option>
+          <option value="price">Precio actual</option>
+          <option value="discount">Descuento (%)</option>
+        </select>
+      </label>
     </div>
 
-    <!-- Search -->
-    <div class="search-box">
-      <input 
-        type="text" 
-        id="searchInput" 
-        placeholder="Search products..."
-        autocomplete="off"
-      >
-    </div>
-
-    <!-- Products List -->
     <div id="productsList" class="products-list">
-      <!-- Products will be rendered here -->
+      <!-- Products rendered here -->
     </div>
 
-    <!-- Empty State -->
     <div id="emptyState" class="empty-state" style="display: none;">
       <div class="empty-icon">📦</div>
-      <h3>No products tracked yet</h3>
-      <p>Visit Amazon, eBay, or AliExpress and click "Track Price" to start monitoring prices.</p>
+      <h3>Sin productos activos</h3>
+      <p>Visita tu tienda favorita y pulsa "Trackear precio" para empezar.</p>
     </div>
 
-    <!-- Loading State -->
     <div id="loadingState" class="loading-state">
       <div class="spinner"></div>
-      <p>Loading products...</p>
+      <p>Cargando productos...</p>
     </div>
   </div>
 
-  <!-- Settings Modal -->
   <div id="settingsModal" class="modal" style="display: none;">
     <div class="modal-overlay"></div>
-    <div class="modal-content">
+    <div class="modal-content settings-content">
       <div class="modal-header">
         <h2>⚙️ Configuración</h2>
         <button id="closeSettingsBtn" class="modal-close" aria-label="Cerrar">✕</button>
       </div>
-      <div class="modal-body">
-        <!-- Notification Settings -->
-        <div class="settings-section">
-          <h3>📢 Notificaciones</h3>
-          <div class="settings-item">
-            <label for="enableNotifications">Activar notificaciones</label>
-            <input type="checkbox" id="enableNotifications" checked>
-          </div>
-          <div class="settings-item">
-            <label for="notificationThreshold">Umbral de alerta (%):</label>
-            <div class="threshold-input">
-              <input type="range" id="notificationThreshold" min="1" max="50" value="5" step="1">
-              <span id="thresholdValue" class="threshold-value">5%</span>
+      <div class="modal-body settings-body">
+        <section class="settings-block">
+          <h3>Configuración básica</h3>
+          <div class="settings-group">
+            <h4>📢 Notificaciones</h4>
+            <div class="settings-item toggle-row">
+              <label for="enableNotifications">Activar notificaciones</label>
+              <input type="checkbox" id="enableNotifications" checked>
             </div>
-            <p class="settings-help">Recibir alerta cuando el precio baje más de este porcentaje</p>
+            <div class="settings-item">
+              <label for="notificationThreshold">Avisarme cuando baje al menos un:</label>
+              <div class="threshold-input">
+                <input type="range" id="notificationThreshold" min="1" max="50" value="5" step="1">
+                <span id="thresholdValue" class="threshold-value">5%</span>
+              </div>
+              <p class="settings-help">Porcentaje mínimo de bajada respecto al precio inicial.</p>
+            </div>
+            <div class="settings-item">
+              <label for="checkInterval">Frecuencia de comprobación</label>
+              <select id="checkInterval">
+                <option value="1">Cada 1 hora</option>
+                <option value="3">Cada 3 horas</option>
+                <option value="6" selected>Cada 6 horas (recomendado)</option>
+                <option value="12">Cada 12 horas</option>
+                <option value="24">Cada 24 horas</option>
+              </select>
+            </div>
+            <div class="settings-item">
+              <button id="testNotificationBtn" class="btn btn-secondary">🔔 Probar notificación</button>
+            </div>
           </div>
-          <div class="settings-item">
-            <button id="testNotificationBtn" class="btn btn-secondary">🔔 Probar notificación</button>
+          <div class="settings-group">
+            <h4>🧭 Comportamiento</h4>
+            <div class="settings-item">
+              <label for="themePreference">Tema de la extensión</label>
+              <select id="themePreference">
+                <option value="system">Seguir el sistema</option>
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+              </select>
+              <p class="settings-help">También puedes alternar rápidamente desde el botón superior derecho.</p>
+            </div>
+            <div class="settings-item">
+              <label for="floatingButtonBehavior">Botón flotante</label>
+              <select id="floatingButtonBehavior">
+                <option value="expanded">Mostrar expandido</option>
+                <option value="compact">Compacto por defecto</option>
+              </select>
+              <p class="settings-help">Controla si el botón flotante aparece en modo compacto al cargar una página.</p>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Check Interval Settings -->
-        <div class="settings-section">
-          <h3>⏰ Intervalo de Chequeo</h3>
-          <div class="settings-item">
-            <label for="checkInterval">Frecuencia:</label>
-            <select id="checkInterval">
-              <option value="1">Cada 1 hora</option>
-              <option value="3">Cada 3 horas</option>
-              <option value="6" selected>Cada 6 horas (recomendado)</option>
-              <option value="12">Cada 12 horas</option>
-              <option value="24">Cada 24 horas</option>
-            </select>
-            <p class="settings-help">Menor frecuencia = menos consumo de batería</p>
-          </div>
-        </div>
-
-        <!-- Firebase Status -->
-        <div class="settings-section">
-          <h3>☁️ Firebase (Historial Compartido)</h3>
-          <div class="settings-item">
+        <details class="settings-block settings-advanced" id="advancedSettings">
+          <summary>🔧 Opciones avanzadas</summary>
+          <div class="settings-group">
+            <h4>☁️ Historial compartido</h4>
             <span id="firebaseStatusDetail" class="status-detail">Comprobando conexión...</span>
-          </div>
-          <div class="settings-item">
             <button id="testFirebaseBtn" class="btn btn-secondary">🧪 Probar conexión Firebase</button>
           </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="settings-section">
-          <h3>🛠️ Acciones</h3>
-          <div class="settings-item">
-            <button id="clearRateLimitsBtn" class="btn btn-secondary">🔓 Limpiar Rate Limits</button>
-            <p class="settings-help">Permite volver a checkear productos bloqueados temporalmente</p>
+          <div class="settings-group">
+            <h4>🚀 Recuperación</h4>
+            <p class="settings-help">Volver a intentar productos bloqueados temporalmente por demasiados intentos.</p>
+            <button id="clearRateLimitsBtn" class="btn btn-secondary">🔄 Reintentar productos bloqueados</button>
           </div>
-        </div>
+        </details>
 
-        <!-- Save Button -->
         <div class="settings-footer">
-          <button id="saveSettingsBtn" class="btn btn-primary">💾 Guardar Configuración</button>
+          <button id="saveSettingsBtn" class="btn btn-primary">💾 Guardar configuración</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Price History Modal -->
   <div id="historyModal" class="modal" style="display: none;">
     <div class="modal-overlay"></div>
     <div class="modal-content">
       <div class="modal-header">
         <h2 id="modalTitle">Historial de Precios</h2>
-        <button id="closeModalBtn" class="modal-close" aria-label="Cerrar">✕</button>
+        <div class="modal-header-actions">
+          <button id="historyExpandBtn" class="modal-icon-btn" aria-label="Expandir gráfico" title="Expandir gráfico">⤢</button>
+          <button id="closeModalBtn" class="modal-close" aria-label="Cerrar">✕</button>
+        </div>
       </div>
       <div class="modal-body">
-        <!-- Stats Section -->
         <div class="history-stats">
           <div class="history-stat-item">
             <span class="history-stat-label">Precio Actual</span>
@@ -171,8 +194,16 @@
             <span class="history-stat-label">Precio Máximo</span>
             <span class="history-stat-value danger" id="statHighestPrice">-</span>
           </div>
+          <div class="history-stat-item">
+            <span class="history-stat-label">Precio Medio</span>
+            <span class="history-stat-value" id="statAveragePrice">-</span>
+          </div>
         </div>
-        <!-- Chart Container -->
+        <div class="history-range" role="group" aria-label="Rango temporal">
+          <button type="button" class="range-btn" data-range="7" aria-pressed="false">Últimos 7 días</button>
+          <button type="button" class="range-btn active" data-range="30" aria-pressed="true">Últimos 30 días</button>
+          <button type="button" class="range-btn" data-range="all" aria-pressed="false">Todo</button>
+        </div>
         <div class="chart-container">
           <canvas id="priceChart"></canvas>
         </div>

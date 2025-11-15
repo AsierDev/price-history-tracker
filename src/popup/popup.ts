@@ -11,6 +11,10 @@ import { getProductHistory, getProductImageUrl } from '../backend/backend';
 // Register Chart.js components
 Chart.register(...registerables);
 
+type SortOption = 'date' | 'store' | 'price' | 'discount';
+type HistoryRange = '7' | '30' | 'all';
+type ThemePreference = 'light' | 'dark' | 'system';
+
 // DOM Elements
 const productsList = document.getElementById('productsList') as HTMLDivElement;
 const emptyState = document.getElementById('emptyState') as HTMLDivElement;
@@ -23,6 +27,12 @@ const totalProducts = document.getElementById('totalProducts') as HTMLSpanElemen
 const totalSavings = document.getElementById('totalSavings') as HTMLSpanElement;
 const firebaseStatus = document.getElementById('firebaseStatus') as HTMLSpanElement;
 const lastUpdate = document.getElementById('lastUpdate') as HTMLSpanElement;
+const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
+const themePreference = document.getElementById('themePreference') as HTMLSelectElement;
+const floatingButtonBehavior = document.getElementById('floatingButtonBehavior') as HTMLSelectElement;
+const rangeButtons = Array.from(document.querySelectorAll('.range-btn')) as HTMLButtonElement[];
+const historyExpandBtn = document.getElementById('historyExpandBtn') as HTMLButtonElement;
+const historyModalContent = document.querySelector('#historyModal .modal-content') as HTMLDivElement;
 
 // Settings Modal Elements
 const settingsModal = document.getElementById('settingsModal') as HTMLDivElement;
@@ -36,10 +46,19 @@ const firebaseStatusDetail = document.getElementById('firebaseStatusDetail') as 
 const testNotificationBtn = document.getElementById('testNotificationBtn') as HTMLButtonElement;
 const testFirebaseBtn = document.getElementById('testFirebaseBtn') as HTMLButtonElement;
 const clearRateLimitsBtn = document.getElementById('clearRateLimitsBtn') as HTMLButtonElement;
+const BUTTON_COLLAPSE_KEY = 'phtButtonCollapsed';
+const THEME_STORAGE_KEY = 'themePreference';
 
 let allProducts: TrackedProduct[] = [];
 let filteredProducts: TrackedProduct[] = [];
 let currentChart: Chart | null = null;
+let currentSortOption: SortOption = 'date';
+let currentHistoryRange: HistoryRange = '30';
+let historyDataCache: PriceDataPoint[] = [];
+let activeHistoryProduct: TrackedProduct | null = null;
+let isHistoryExpanded = false;
+let currentThemePreference: ThemePreference = 'light';
+const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
 
 // Initialize
 async function init() {
@@ -55,8 +74,7 @@ async function loadProducts() {
   try {
     showLoading(true);
     allProducts = await StorageManager.getProducts();
-    filteredProducts = allProducts;
-    renderProducts();
+    applyFilters();
     updateStats();
   } catch (error) {
     console.error('Failed to load products:', error);
@@ -106,6 +124,8 @@ function renderProducts() {
       newRemoveBtn.addEventListener('click', () => handleRemoveProduct(product.id));
     }
   });
+
+  loadProductImages();
 }
 
 // Create product card HTML
@@ -124,7 +144,7 @@ function createProductCard(product: TrackedProduct): string {
   const percentChange = ((priceChange / product.initialPrice) * 100).toFixed(1);
   const changeClass = priceChange < 0 ? 'positive' : priceChange > 0 ? 'negative' : '';
   const changeSymbol = priceChange < 0 ? '↓' : priceChange > 0 ? '↑' : '=';
-  const displayStore = product.storeName || formatAdapterLabel(product.adapter);
+  const displayStore = getStoreDisplayName(product);
 
   return `
     <div class="product-card">
@@ -137,14 +157,14 @@ function createProductCard(product: TrackedProduct): string {
           ${priceChange !== 0 ? `<span class="price-change ${changeClass}">${changeSymbol} ${Math.abs(parseFloat(percentChange))}%</span>` : ''}
         </div>
         <div class="product-meta">
-          Added ${formatTimestamp(product.addedAt)} • ${displayStore}
-          ${product.adapter === 'generic' && product.customSelector ? '<span class="selector-badge" title="Custom selector: ' + product.customSelector + '">🎯</span>' : ''}
+          Añadido ${formatTimestamp(product.addedAt)} • ${displayStore}
+          ${product.adapter === 'generic' && product.customSelector ? '<span class="selector-badge" title="Selector personalizado: ' + product.customSelector + '">🎯</span>' : ''}
         </div>
       </div>
       <div class="product-actions">
         <button id="history-${product.id}" class="btn btn-chart" title="Ver historial">📊 Historial</button>
-        <button id="view-${product.id}" class="btn btn-primary">View</button>
-        <button id="remove-${product.id}" class="btn btn-danger">Remove</button>
+        <button id="view-${product.id}" class="btn btn-primary">Ver tienda</button>
+        <button id="remove-${product.id}" class="btn btn-danger">Eliminar</button>
       </div>
     </div>
   `;
@@ -184,7 +204,7 @@ async function handleViewProduct(product: TrackedProduct) {
 
 // Handle remove product
 async function handleRemoveProduct(productId: string) {
-  if (!confirm('Are you sure you want to stop tracking this product?')) {
+  if (!confirm('¿Seguro que quieres dejar de seguir este producto?')) {
     return;
   }
 
@@ -193,23 +213,71 @@ async function handleRemoveProduct(productId: string) {
     await loadProducts();
   } catch (error) {
     console.error('Failed to remove product:', error);
-    alert('Failed to remove product. Please try again.');
+    alert('No se pudo eliminar el producto. Inténtalo de nuevo.');
   }
+}
+
+function applyFilters() {
+  const query = searchInput.value.toLowerCase().trim();
+  const baseList = query
+    ? allProducts.filter(product => product.title.toLowerCase().includes(query))
+    : [...allProducts];
+
+  filteredProducts = sortProductList(baseList);
+  renderProducts();
+}
+
+function sortProductList(products: TrackedProduct[]): TrackedProduct[] {
+  return [...products].sort((a, b) => {
+    switch (currentSortOption) {
+      case 'store': {
+        return getStoreDisplayName(a).localeCompare(getStoreDisplayName(b), 'es');
+      }
+      case 'price': {
+        const priceDiff = a.currentPrice - b.currentPrice;
+        if (priceDiff !== 0) return priceDiff;
+        return b.addedAt - a.addedAt;
+      }
+      case 'discount': {
+        const discountDiff = getDiscountPercent(b) - getDiscountPercent(a);
+        if (discountDiff !== 0) return discountDiff;
+        return b.addedAt - a.addedAt;
+      }
+      case 'date':
+      default:
+        return b.addedAt - a.addedAt;
+    }
+  });
+}
+
+function getStoreDisplayName(product: TrackedProduct): string {
+  if (product.storeName) {
+    return product.storeName;
+  }
+
+  try {
+    return new URL(product.url).hostname.replace(/^www\./, '');
+  } catch {
+    return formatAdapterLabel(product.adapter);
+  }
+}
+
+function getDiscountPercent(product: TrackedProduct): number {
+  if (!product.initialPrice || product.initialPrice === 0) {
+    return 0;
+  }
+  const diff = ((product.initialPrice - product.currentPrice) / product.initialPrice) * 100;
+  return Number.isFinite(diff) ? diff : 0;
 }
 
 // Handle search
 function handleSearch() {
-  const query = searchInput.value.toLowerCase().trim();
+  applyFilters();
+}
 
-  if (!query) {
-    filteredProducts = allProducts;
-  } else {
-    filteredProducts = allProducts.filter(product =>
-      product.title.toLowerCase().includes(query)
-    );
-  }
-
-  renderProducts();
+function handleSortChange() {
+  currentSortOption = sortSelect.value as SortOption;
+  applyFilters();
 }
 
 // Handle refresh
@@ -234,27 +302,54 @@ async function handleRefresh() {
   }
 }
 
-// Handle dark mode toggle
 function handleDarkModeToggle() {
-  const currentTheme = document.documentElement.getAttribute('data-theme');
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  
-  document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem('theme', newTheme);
-  
-  darkModeToggle.querySelector('span')!.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+  const appliedTheme = document.documentElement.getAttribute('data-theme');
+  const nextTheme: ThemePreference = appliedTheme === 'dark' ? 'light' : 'dark';
+  currentThemePreference = nextTheme;
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  applyTheme(nextTheme);
 }
 
-// Load dark mode preference
+function handleThemePreferenceChange() {
+  const selected = themePreference.value as ThemePreference;
+  currentThemePreference = selected;
+  localStorage.setItem(THEME_STORAGE_KEY, selected);
+  applyTheme(selected);
+}
+
 function loadDarkMode() {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  darkModeToggle.querySelector('span')!.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+  const storedPreference = (localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem('theme')) as ThemePreference | null;
+  currentThemePreference = storedPreference === 'dark' || storedPreference === 'system' ? storedPreference : 'light';
+  localStorage.setItem(THEME_STORAGE_KEY, currentThemePreference);
+  localStorage.removeItem('theme');
+  applyTheme(currentThemePreference);
+}
+
+function applyTheme(preference: ThemePreference) {
+  const resolvedTheme = preference === 'system' ? (prefersDarkScheme.matches ? 'dark' : 'light') : preference;
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
+  darkModeToggle.querySelector('span')!.textContent = resolvedTheme === 'dark' ? '☀️' : '🌙';
+  if (themePreference) {
+    themePreference.value = preference;
+  }
+}
+
+const handleSystemThemeChange = () => {
+  if (currentThemePreference === 'system') {
+    applyTheme('system');
+  }
+};
+
+if (typeof prefersDarkScheme.addEventListener === 'function') {
+  prefersDarkScheme.addEventListener('change', handleSystemThemeChange);
+} else if (typeof prefersDarkScheme.addListener === 'function') {
+  prefersDarkScheme.addListener(handleSystemThemeChange);
 }
 
 // Setup event listeners
 function setupEventListeners() {
   searchInput.addEventListener('input', handleSearch);
+  sortSelect.addEventListener('change', handleSortChange);
   refreshBtn.addEventListener('click', handleRefresh);
   darkModeToggle.addEventListener('click', handleDarkModeToggle);
   settingsBtn.addEventListener('click', openSettingsModal);
@@ -263,7 +358,18 @@ function setupEventListeners() {
   testNotificationBtn.addEventListener('click', testNotification);
   testFirebaseBtn.addEventListener('click', testFirebaseConnection);
   clearRateLimitsBtn.addEventListener('click', clearRateLimits);
+  themePreference.addEventListener('change', handleThemePreferenceChange);
   enableNotifications.addEventListener('change', handleNotificationToggle);
+  historyExpandBtn.addEventListener('click', handleHistoryExpand);
+
+  rangeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const range = button.dataset.range as HistoryRange | undefined;
+      if (range) {
+        setHistoryRange(range);
+      }
+    });
+  });
   
   // Threshold slider
   notificationThreshold.addEventListener('input', () => {
@@ -281,8 +387,8 @@ function setupEventListeners() {
     }
   });
 
-  // Load images asynchronously after render
-  loadProductImages();
+  updateRangeButtons(currentHistoryRange);
+  setHistoryExpanded(false);
 }
 
 // Load product images from backend asynchronously with improved performance
@@ -349,7 +455,7 @@ async function loadProductImages() {
         const errorImg = document.createElement('div');
         errorImg.className = 'product-image error';
         errorImg.innerHTML = '📦'; // Package emoji as fallback
-        errorImg.title = 'Image not available';
+        errorImg.title = 'Imagen no disponible';
 
         imgContainer.replaceWith(errorImg);
       }
@@ -376,6 +482,10 @@ async function handleShowHistory(product: TrackedProduct) {
   
   // Set title
   modalTitle.textContent = product.title;
+  setHistoryExpanded(false);
+  currentHistoryRange = '30';
+  updateRangeButtons(currentHistoryRange);
+  activeHistoryProduct = product;
   
   // Show modal with loading state
   modal.style.display = 'flex';
@@ -383,12 +493,10 @@ async function handleShowHistory(product: TrackedProduct) {
   try {
     // Fetch history from backend
     const priceHistory = await getProductHistory(product.url);
-    
-    // Update stats
-    updateHistoryStats(product, priceHistory);
-    
-    // Render chart
-    renderPriceChart(product, priceHistory);
+    historyDataCache = [...priceHistory].sort((a, b) => a.timestamp - b.timestamp);
+    const historyForRange = getFilteredHistoryData(historyDataCache, currentHistoryRange);
+    updateHistoryStats(product, historyForRange);
+    renderPriceChart(product, historyForRange);
   } catch (error) {
     console.error('Failed to load price history', error);
     // Show error or fallback
@@ -419,6 +527,7 @@ function closeHistoryModal() {
   
   // Remove ESC listener
   document.removeEventListener('keydown', handleEscapeKey);
+  resetHistoryState();
 }
 
 function handleEscapeKey(e: KeyboardEvent) {
@@ -432,26 +541,31 @@ function updateHistoryStats(product: TrackedProduct, priceHistory: PriceDataPoin
   const initialPriceEl = document.getElementById('statInitialPrice') as HTMLSpanElement;
   const lowestPriceEl = document.getElementById('statLowestPrice') as HTMLSpanElement;
   const highestPriceEl = document.getElementById('statHighestPrice') as HTMLSpanElement;
+  const averagePriceEl = document.getElementById('statAveragePrice') as HTMLSpanElement;
   
   const currency = product.currency === 'EUR' ? '€' : product.currency;
+  const formatValue = (value: number) => `${value.toFixed(2)}${currency}`;
   
   // Current price
-  currentPriceEl.textContent = `${product.currentPrice.toFixed(2)}${currency}`;
+  currentPriceEl.textContent = formatValue(product.currentPrice);
   
   // Initial price
-  initialPriceEl.textContent = `${product.initialPrice.toFixed(2)}${currency}`;
+  initialPriceEl.textContent = formatValue(product.initialPrice);
   
   // Calculate min/max from backend history
   if (priceHistory.length > 0) {
     const prices = priceHistory.map(h => h.price);
     const lowest = Math.min(...prices);
     const highest = Math.max(...prices);
+    const average = prices.reduce((sum, value) => sum + value, 0) / prices.length;
     
-    lowestPriceEl.textContent = `${lowest.toFixed(2)}${currency}`;
-    highestPriceEl.textContent = `${highest.toFixed(2)}${currency}`;
+    lowestPriceEl.textContent = formatValue(lowest);
+    highestPriceEl.textContent = formatValue(highest);
+    averagePriceEl.textContent = formatValue(average);
   } else {
-    lowestPriceEl.textContent = `${product.currentPrice.toFixed(2)}${currency}`;
-    highestPriceEl.textContent = `${product.currentPrice.toFixed(2)}${currency}`;
+    lowestPriceEl.textContent = formatValue(product.currentPrice);
+    highestPriceEl.textContent = formatValue(product.currentPrice);
+    averagePriceEl.textContent = formatValue(product.currentPrice);
   }
 }
 
@@ -482,14 +596,16 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
   // Sort by timestamp
   historyData.sort((a, b) => a.timestamp - b.timestamp);
   
-  const labels = historyData.map(entry => 
+  const labels = historyData.map(entry =>
     new Date(entry.timestamp).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short'
-    })
+      day: 'numeric',
+      month: 'short',
+    }),
   );
   
   const prices = historyData.map(entry => entry.price);
+  const currencyLabel = product.currency === 'EUR' ? '€' : product.currency;
+  const formatPrice = (value: number) => `${value.toFixed(2)}${currencyLabel}`;
   
   // Detect theme
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
@@ -525,8 +641,7 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 2,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           display: false,
@@ -540,10 +655,22 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
           padding: 12,
           displayColors: false,
           callbacks: {
-            label: (context) => {
-              const currency = product.currency === 'EUR' ? '€' : product.currency;
+            title: items => (items[0]?.label ? items[0].label : ''),
+            label: context => {
               const price = context.parsed.y ?? 0;
-              return `Precio: ${price.toFixed(2)}${currency}`;
+              return `Precio: ${formatPrice(price)}`;
+            },
+            afterLabel: context => {
+              if (!product.initialPrice) {
+                return '';
+              }
+              const price = context.parsed.y ?? 0;
+              const diffPercent = ((price - product.initialPrice) / product.initialPrice) * 100;
+              if (!Number.isFinite(diffPercent)) {
+                return '';
+              }
+              const sign = diffPercent >= 0 ? '+' : '−';
+              return `vs inicial: ${sign}${Math.abs(diffPercent).toFixed(1)}%`;
             },
           },
         },
@@ -568,8 +695,8 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
           ticks: {
             color: textColor,
             callback: function (value) {
-              const currency = product.currency === 'EUR' ? '€' : product.currency;
-              return `${value}${currency}`;
+              const numericValue = typeof value === 'number' ? value : Number(value);
+              return formatPrice(numericValue);
             },
           },
         },
@@ -580,6 +707,65 @@ function renderPriceChart(product: TrackedProduct, priceHistory: PriceDataPoint[
       },
     },
   });
+}
+
+function setHistoryRange(range: HistoryRange) {
+  currentHistoryRange = range;
+  updateRangeButtons(range);
+  if (!activeHistoryProduct || historyDataCache.length === 0) {
+    return;
+  }
+  const dataForRange = getFilteredHistoryData(historyDataCache, range);
+  updateHistoryStats(activeHistoryProduct, dataForRange);
+  renderPriceChart(activeHistoryProduct, dataForRange);
+}
+
+function updateRangeButtons(range: HistoryRange) {
+  rangeButtons.forEach(button => {
+    const isActive = button.dataset.range === range;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function getFilteredHistoryData(data: PriceDataPoint[], range: HistoryRange): PriceDataPoint[] {
+  if (range === 'all') {
+    return [...data];
+  }
+
+  const days = parseInt(range, 10);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const filtered = data.filter(entry => entry.timestamp >= cutoff);
+  return filtered.length > 0 ? filtered : [...data];
+}
+
+function handleHistoryExpand() {
+  setHistoryExpanded(!isHistoryExpanded);
+}
+
+function setHistoryExpanded(expanded: boolean) {
+  if (!historyModalContent || !historyExpandBtn) {
+    return;
+  }
+
+  isHistoryExpanded = expanded;
+  historyModalContent.classList.toggle('expanded', expanded);
+  historyExpandBtn.textContent = expanded ? '⤡' : '⤢';
+  historyExpandBtn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+  historyExpandBtn.title = expanded ? 'Reducir gráfico' : 'Expandir gráfico';
+  historyExpandBtn.setAttribute('aria-label', expanded ? 'Reducir gráfico' : 'Expandir gráfico');
+
+  if (currentChart) {
+    currentChart.resize();
+  }
+}
+
+function resetHistoryState() {
+  activeHistoryProduct = null;
+  historyDataCache = [];
+  currentHistoryRange = '30';
+  updateRangeButtons(currentHistoryRange);
+  setHistoryExpanded(false);
 }
 
 // Update status indicators (Firebase and last update)
@@ -626,6 +812,7 @@ async function loadSettings() {
 
     // Load check interval
     checkInterval.value = config.checkIntervalHours.toString();
+    themePreference.value = currentThemePreference;
     
     // Check Firebase status
     const anonymousUserId = await StorageManager.getAnonymousUserId();
@@ -636,6 +823,10 @@ async function loadSettings() {
       firebaseStatusDetail.textContent = '❌ No conectado. Firebase necesita configuración.';
       firebaseStatusDetail.className = 'status-detail error';
     }
+
+    const collapsePreference = await chrome.storage.local.get(BUTTON_COLLAPSE_KEY);
+    const isCompact = Boolean(collapsePreference[BUTTON_COLLAPSE_KEY]);
+    floatingButtonBehavior.value = isCompact ? 'compact' : 'expanded';
   } catch (error) {
     console.error('Error loading settings:', error);
   }
@@ -665,6 +856,9 @@ async function saveSettings() {
       notificationsEnabled: enableNotifications.checked,
     });
 
+    const shouldStartCompact = floatingButtonBehavior.value === 'compact';
+    await chrome.storage.local.set({ [BUTTON_COLLAPSE_KEY]: shouldStartCompact });
+
     // Update alarm with new interval
     await chrome.runtime.sendMessage({
       action: 'updateAlarm',
@@ -674,7 +868,7 @@ async function saveSettings() {
     // Show success feedback
     saveSettingsBtn.textContent = '✅ Guardado!';
     setTimeout(() => {
-      saveSettingsBtn.textContent = '💾 Guardar Configuración';
+      saveSettingsBtn.textContent = '💾 Guardar configuración';
       closeSettingsModal();
     }, 1500);
 
@@ -684,7 +878,7 @@ async function saveSettings() {
     console.error('Error saving settings:', error);
     saveSettingsBtn.textContent = '❌ Error';
     setTimeout(() => {
-      saveSettingsBtn.textContent = '💾 Guardar Configuración';
+      saveSettingsBtn.textContent = '💾 Guardar configuración';
     }, 2000);
   }
 }
@@ -762,20 +956,20 @@ async function testFirebaseConnection() {
 async function clearRateLimits() {
   try {
     clearRateLimitsBtn.disabled = true;
-    clearRateLimitsBtn.textContent = '⏳ Limpiando...';
+    clearRateLimitsBtn.textContent = '⏳ Reintentando...';
 
     await chrome.runtime.sendMessage({ action: 'clearAllRateLimits' });
 
-    clearRateLimitsBtn.textContent = '✅ Limpiados!';
+    clearRateLimitsBtn.textContent = '✅ Reintentado!';
     setTimeout(() => {
-      clearRateLimitsBtn.textContent = '🔓 Limpiar Rate Limits';
+      clearRateLimitsBtn.textContent = '🔄 Reintentar productos bloqueados';
       clearRateLimitsBtn.disabled = false;
     }, 2000);
   } catch (error) {
     console.error('Error clearing rate limits:', error);
     clearRateLimitsBtn.textContent = '❌ Error';
     setTimeout(() => {
-      clearRateLimitsBtn.textContent = '🔓 Limpiar Rate Limits';
+      clearRateLimitsBtn.textContent = '🔄 Reintentar productos bloqueados';
       clearRateLimitsBtn.disabled = false;
     }, 2000);
   }

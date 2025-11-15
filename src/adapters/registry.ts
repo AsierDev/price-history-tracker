@@ -63,7 +63,7 @@ const TIER_BASE: Record<SupportTier, { level: 0 | 1 | 2 | 3; label: string; desc
   whitelist: {
     level: 2,
     label: 'Verified Store',
-    description: 'Sitio en whitelist con extracción mejorada',
+    description: 'Tienda verificada con extracción mejorada',
   },
   manual: {
     level: 3,
@@ -142,7 +142,7 @@ function getTierForUrl(url: string): TierInfo {
       adapterName: 'enhanced-generic',
       siteName: whitelistSite.name,
       siteInfo: whitelistSite,
-      description: `Whitelist verificada: ${whitelistSite.name}`,
+      description: `Tienda verificada: ${whitelistSite.name}`,
     });
   }
 
@@ -225,7 +225,7 @@ export function getBadgeInfo(url: string): BadgeInfo {
     case 'whitelist':
       return {
         emoji: '✓',
-        text: tierInfo.siteName ?? 'Whitelist',
+        text: tierInfo.siteName ?? 'Tienda verificada',
         tone: 'info',
         level: tierInfo.level,
       };
