@@ -699,6 +699,44 @@ select:focus-visible {
   height: 100% !important;
 }
 
+/* History modal focus & expansion */
+#historyModal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+#historyModal .history-range {
+  margin-bottom: 0;
+}
+
+#historyModal .chart-container {
+  flex: 1;
+}
+
+#historyModal .modal-content.expanded {
+  width: calc(100% - 16px);
+  max-width: none;
+  height: calc(100% - 16px);
+  max-height: none;
+}
+
+#historyModal .modal-content.expanded .modal-body {
+  padding: 16px 22px 22px;
+  overflow-y: hidden;
+  gap: 12px;
+}
+
+#historyModal .modal-content.expanded .history-stats {
+  display: none;
+}
+
+#historyModal .modal-content.expanded .chart-container {
+  padding: 16px 22px;
+  min-height: 420px;
+}
+
 /* Responsive adjustments for modal */
 @media (max-width: 450px) {
   .modal-content {
