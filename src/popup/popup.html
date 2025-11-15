@@ -10,7 +10,18 @@
   <div class="container">
     <header class="header">
       <div class="header-title">
-        <h1>💰 Price Tracker</h1>
+        <div class="title-line">
+          <h1>💰 Price Tracker</h1>
+          <span
+            id="connectionHint"
+            class="connection-dot"
+            role="status"
+            aria-live="polite"
+            data-state="checking"
+            aria-label="Estado de conexión: comprobando"
+            title="Estado de conexión: comprobando"
+          ></span>
+        </div>
         <p class="header-subtitle">Seguimiento inteligente de precios</p>
       </div>
       <div class="header-actions">
@@ -31,20 +42,19 @@
         <span class="stat-label">Productos activos</span>
         <span class="stat-value" id="totalProducts">0</span>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card kpi-card--savings">
         <div class="stat-label with-helper">
-          <span>Ahorro acumulado</span>
-          <button type="button" class="info-btn" aria-label="Explicación del ahorro acumulado" title="Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio).">ℹ️</button>
+          <span>AHORRO ACUMULADO</span>
+          <button
+            type="button"
+            class="info-btn"
+            aria-label="¿Qué significa el ahorro acumulado?"
+            title="Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio)."
+          >
+            ℹ️
+          </button>
         </div>
         <span class="stat-value" id="totalSavings">0€</span>
-        <p class="stat-helper" id="savingsHelper">Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio).</p>
-      </div>
-      <div class="kpi-card kpi-card--meta">
-        <span class="stat-label">Estado conexión</span>
-        <div class="status-stack">
-          <span id="firebaseStatus" class="status-badge" title="Estado de Firebase">⚪ Comprobando...</span>
-          <span id="lastUpdate" class="last-update" title="Última actualización">Nunca</span>
-        </div>
       </div>
     </section>
 
@@ -147,6 +157,13 @@
 
         <details class="settings-block settings-advanced" id="advancedSettings">
           <summary>🔧 Opciones avanzadas</summary>
+          <div class="settings-group">
+            <h4>🛰 Estado de conexión</h4>
+            <div class="connection-status-row">
+              <span id="settingsConnectionStatus" class="status-badge checking">⚪ Comprobando...</span>
+              <span id="settingsLastSync" class="last-update">Sincronización pendiente</span>
+            </div>
+          </div>
           <div class="settings-group">
             <h4>☁️ Historial compartido</h4>
             <span id="firebaseStatusDetail" class="status-detail">Comprobando conexión...</span>

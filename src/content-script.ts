@@ -43,6 +43,7 @@ const ERROR_GRADIENT = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
 const pricePicker = new PricePicker();
 const BUTTON_COLLAPSE_KEY = 'phtButtonCollapsed';
 const BUTTON_LABEL_HINT_KEY = 'phtButtonLabelHintShown';
+const BUTTON_MINIMIZE_HINT_KEY = 'phtButtonMinimizeHintShown';
 const BUTTON_STYLE_ID = 'price-tracker-styles';
 
 let trackButton: HTMLButtonElement | null = null;
@@ -50,18 +51,20 @@ let buttonLabelContainer: HTMLSpanElement | null = null;
 let buttonLabelEl: HTMLSpanElement | null = null;
 let buttonBadgeEl: HTMLSpanElement | null = null;
 let buttonIconEl: HTMLSpanElement | null = null;
-let buttonTooltipEl: HTMLDivElement | null = null;
 let buttonWrapper: HTMLDivElement | null = null;
 let collapseToggleEl: HTMLButtonElement | null = null;
 let collapsedFabEl: HTMLButtonElement | null = null;
+let buttonToastEl: HTMLDivElement | null = null;
 let currentMode: SupportMode = 'none';
 let lastUrl = window.location.href;
 let isButtonCollapsed = false;
 let hasShownLabelHint = false;
+let hasShownMinimizeHint = false;
 let labelHintTimeout: number | null = null;
 let labelHintActive = false;
 let forcedLabelActive = false;
 let currentButtonState: ButtonState = 'idle';
+let minimizeHintTimeout: number | null = null;
 
 /**
  * Entry point
@@ -164,25 +167,12 @@ function ensureTrackButton() {
     void handleTrackPrice();
   });
 
-  trackButton.addEventListener('mouseenter', showTooltip);
-  trackButton.addEventListener('mouseleave', hideTooltip);
-  trackButton.addEventListener('focus', showTooltip);
-  trackButton.addEventListener('blur', hideTooltip);
-  trackButton.addEventListener(
-    'touchstart',
-    () => {
-      showTooltip();
-      window.setTimeout(() => hideTooltip(), 1600);
-    },
-    { passive: true },
-  );
-
   collapseToggleEl = document.createElement('button');
   collapseToggleEl.id = 'price-tracker-hide';
   collapseToggleEl.type = 'button';
-  collapseToggleEl.title = 'Ocultar botón flotante';
-  collapseToggleEl.setAttribute('aria-label', 'Ocultar botón flotante');
-  collapseToggleEl.textContent = 'Ocultar';
+  collapseToggleEl.title = 'Minimizar control flotante';
+  collapseToggleEl.setAttribute('aria-label', 'Minimizar control flotante');
+  collapseToggleEl.textContent = 'Minimizar';
   collapseToggleEl.addEventListener('click', event => {
     event.stopPropagation();
     void setButtonCollapsedState(true);
@@ -191,23 +181,21 @@ function ensureTrackButton() {
   collapsedFabEl = document.createElement('button');
   collapsedFabEl.id = 'price-tracker-collapsed';
   collapsedFabEl.type = 'button';
-  collapsedFabEl.title = 'Mostrar control de precios';
-  collapsedFabEl.setAttribute('aria-label', 'Mostrar control de precios');
+  collapsedFabEl.title = 'Trackear el precio de este producto';
+  collapsedFabEl.setAttribute('aria-label', 'Trackear el precio de este producto');
   collapsedFabEl.textContent = '📈';
   collapsedFabEl.addEventListener('click', () => {
     void setButtonCollapsedState(false);
   });
 
-  buttonTooltipEl = document.createElement('div');
-  buttonTooltipEl.id = 'price-tracker-tooltip';
-  buttonTooltipEl.setAttribute('role', 'tooltip');
-  buttonTooltipEl.dataset.visible = 'false';
-  trackButton.setAttribute('aria-describedby', buttonTooltipEl.id);
+  buttonToastEl = document.createElement('div');
+  buttonToastEl.id = 'price-tracker-toast';
+  buttonToastEl.dataset.visible = 'false';
 
   buttonWrapper.appendChild(trackButton);
   buttonWrapper.appendChild(collapseToggleEl);
   buttonWrapper.appendChild(collapsedFabEl);
-  buttonWrapper.appendChild(buttonTooltipEl);
+  buttonWrapper.appendChild(buttonToastEl);
   document.body.appendChild(buttonWrapper);
 
   updateButtonPresentation();
@@ -227,15 +215,19 @@ function removeTrackButton() {
   buttonLabelEl = null;
   buttonBadgeEl = null;
   buttonIconEl = null;
-  buttonTooltipEl = null;
   collapseToggleEl = null;
   collapsedFabEl = null;
+  buttonToastEl = null;
   forcedLabelActive = false;
   labelHintActive = false;
   currentButtonState = 'idle';
   if (labelHintTimeout) {
     window.clearTimeout(labelHintTimeout);
     labelHintTimeout = null;
+  }
+  if (minimizeHintTimeout) {
+    window.clearTimeout(minimizeHintTimeout);
+    minimizeHintTimeout = null;
   }
 }
 
@@ -376,20 +368,6 @@ function updateButtonAccessibility() {
   const tooltip = tooltipTextForCurrentMode();
   trackButton.setAttribute('aria-label', tooltip);
   trackButton.title = tooltip;
-  if (buttonTooltipEl) {
-    buttonTooltipEl.textContent = tooltip;
-    trackButton.setAttribute('aria-describedby', buttonTooltipEl.id);
-  }
-}
-
-function showTooltip() {
-  if (!buttonTooltipEl || isButtonCollapsed) return;
-  buttonTooltipEl.dataset.visible = 'true';
-}
-
-function hideTooltip() {
-  if (!buttonTooltipEl) return;
-  buttonTooltipEl.dataset.visible = 'false';
 }
 
 /**
@@ -606,12 +584,14 @@ async function sendPingToServiceWorker() {
 
 async function loadButtonPreferences(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get([BUTTON_COLLAPSE_KEY, BUTTON_LABEL_HINT_KEY]);
+    const stored = await chrome.storage.local.get([BUTTON_COLLAPSE_KEY, BUTTON_LABEL_HINT_KEY, BUTTON_MINIMIZE_HINT_KEY]);
     isButtonCollapsed = Boolean(stored[BUTTON_COLLAPSE_KEY]);
     hasShownLabelHint = Boolean(stored[BUTTON_LABEL_HINT_KEY]);
+    hasShownMinimizeHint = Boolean(stored[BUTTON_MINIMIZE_HINT_KEY]);
   } catch (error) {
     isButtonCollapsed = false;
     hasShownLabelHint = false;
+    hasShownMinimizeHint = false;
     logger.warn('Unable to read button preference', {
       error: error instanceof Error ? error.message : String(error),
     });
@@ -627,7 +607,15 @@ async function setButtonCollapsedState(collapsed: boolean): Promise<void> {
   isButtonCollapsed = collapsed;
 
   try {
-    await chrome.storage.local.set({ [BUTTON_COLLAPSE_KEY]: collapsed });
+    const payload: Record<string, boolean> = { [BUTTON_COLLAPSE_KEY]: collapsed };
+    if (collapsed && !hasShownMinimizeHint) {
+      hasShownMinimizeHint = true;
+      payload[BUTTON_MINIMIZE_HINT_KEY] = true;
+      showMinimizeHintToast();
+    } else if (!collapsed) {
+      hideMinimizeHintToast();
+    }
+    await chrome.storage.local.set(payload);
   } catch (error) {
     logger.warn('Unable to persist button preference', {
       error: error instanceof Error ? error.message : String(error),
@@ -643,8 +631,40 @@ function updateCollapsedPresentation() {
   }
 
   buttonWrapper.dataset.collapsed = String(isButtonCollapsed);
-  if (isButtonCollapsed) {
-    hideTooltip();
+  if (!isButtonCollapsed) {
+    hideMinimizeHintToast();
+  }
+}
+
+function showMinimizeHintToast() {
+  if (!buttonWrapper) {
+    return;
+  }
+
+  if (!buttonToastEl) {
+    buttonToastEl = document.createElement('div');
+    buttonToastEl.id = 'price-tracker-toast';
+    buttonToastEl.dataset.visible = 'false';
+    buttonWrapper.appendChild(buttonToastEl);
+  }
+
+  buttonToastEl.textContent = 'Minimizado. Puedes volver a abrirlo desde el icono.';
+  buttonToastEl.dataset.visible = 'true';
+  if (minimizeHintTimeout) {
+    window.clearTimeout(minimizeHintTimeout);
+  }
+  minimizeHintTimeout = window.setTimeout(() => {
+    hideMinimizeHintToast();
+  }, 3200);
+}
+
+function hideMinimizeHintToast() {
+  if (minimizeHintTimeout) {
+    window.clearTimeout(minimizeHintTimeout);
+    minimizeHintTimeout = null;
+  }
+  if (buttonToastEl) {
+    buttonToastEl.dataset.visible = 'false';
   }
 }
 
@@ -770,36 +790,35 @@ function injectFloatingButtonStyles() {
       justify-content: center;
       box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
       cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #price-tracker-collapsed:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 26px rgba(15, 23, 42, 0.3);
     }
     #price-tracker-wrapper[data-collapsed="false"] #price-tracker-collapsed {
       display: none;
     }
-    #price-tracker-tooltip {
-      position: absolute;
-      bottom: 68px;
-      left: 0;
+    #price-tracker-toast {
       background: rgba(17, 24, 39, 0.95);
       color: #fff;
-      border-radius: 10px;
-      padding: 8px 12px;
+      border-radius: 12px;
+      padding: 10px 14px;
       font-size: 13px;
-      max-width: 240px;
-      line-height: 1.3;
-      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.35);
+      max-width: 280px;
+      line-height: 1.4;
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.4);
       opacity: 0;
-      transform: translateY(8px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      pointer-events: none;
+      transform: translateY(10px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: none !important;
     }
-    #price-tracker-tooltip[data-visible="true"] {
+    #price-tracker-toast[data-visible="true"] {
       opacity: 1;
       transform: translateY(0);
     }
     #price-tracker-wrapper[data-collapsed="true"] #price-tracker-btn,
     #price-tracker-wrapper[data-collapsed="true"] #price-tracker-hide {
-      display: none;
-    }
-    #price-tracker-wrapper[data-collapsed="true"] #price-tracker-tooltip {
       display: none;
     }
     @media (max-width: 768px) {

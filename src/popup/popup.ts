@@ -25,8 +25,9 @@ const darkModeToggle = document.getElementById('darkModeToggle') as HTMLButtonEl
 const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
 const totalProducts = document.getElementById('totalProducts') as HTMLSpanElement;
 const totalSavings = document.getElementById('totalSavings') as HTMLSpanElement;
-const firebaseStatus = document.getElementById('firebaseStatus') as HTMLSpanElement;
-const lastUpdate = document.getElementById('lastUpdate') as HTMLSpanElement;
+const connectionHint = document.getElementById('connectionHint') as HTMLSpanElement | null;
+const settingsConnectionStatus = document.getElementById('settingsConnectionStatus') as HTMLSpanElement;
+const settingsLastSync = document.getElementById('settingsLastSync') as HTMLSpanElement;
 const sortSelect = document.getElementById('sortSelect') as HTMLSelectElement;
 const themePreference = document.getElementById('themePreference') as HTMLSelectElement;
 const floatingButtonBehavior = document.getElementById('floatingButtonBehavior') as HTMLSelectElement;
@@ -770,33 +771,60 @@ function resetHistoryState() {
 
 // Update status indicators (Firebase and last update)
 async function updateStatusIndicators() {
+  setConnectionHintState('checking', 'Comprobando conexión...');
+  settingsConnectionStatus.textContent = '⚪ Comprobando...';
+  settingsConnectionStatus.className = 'status-badge checking';
+  settingsConnectionStatus.title = 'Comprobando conexión...';
+  settingsConnectionStatus.setAttribute('aria-label', 'Comprobando conexión');
   try {
-    // Check Firebase connection
-    const anonymousUserId = await StorageManager.getAnonymousUserId();
-    if (anonymousUserId) {
-      firebaseStatus.textContent = '🟢 Conectado';
-      firebaseStatus.className = 'status-badge connected';
-      firebaseStatus.title = `Firebase UID: ${anonymousUserId.substring(0, 8)}...`;
-    } else {
-      firebaseStatus.textContent = '🔴 No configurado';
-      firebaseStatus.className = 'status-badge disconnected';
-      firebaseStatus.title = 'Firebase no está configurado. Configura las variables de entorno.';
-    }
+    const [anonymousUserId, lastCheckTime] = await Promise.all([
+      StorageManager.getAnonymousUserId(),
+      StorageManager.getLastCheckTime(),
+    ]);
+    const isConnected = Boolean(anonymousUserId);
+    const statusLabel = isConnected ? '🟢 Conectado' : '🔴 Desconectado';
+    const statusClass = isConnected ? 'status-badge connected' : 'status-badge disconnected';
+    const statusTitle = isConnected
+      ? `Firebase UID: ${anonymousUserId!.substring(0, 8)}...`
+      : 'Firebase no está configurado. Configura las variables de entorno.';
 
-    // Update last check time
-    const lastCheckTime = await StorageManager.getLastCheckTime();
+    settingsConnectionStatus.textContent = statusLabel;
+    settingsConnectionStatus.className = statusClass;
+    settingsConnectionStatus.title = statusTitle;
+    settingsConnectionStatus.setAttribute('aria-label', isConnected ? 'Conectado' : 'Desconectado');
+
+    const hintLabel = isConnected ? 'Estado de conexión: conectado' : 'Estado de conexión: desconectado';
+    setConnectionHintState(isConnected ? 'connected' : 'disconnected', `${hintLabel}. ${statusTitle}`);
+
     if (lastCheckTime > 0) {
-      lastUpdate.textContent = formatTimestamp(lastCheckTime);
-      lastUpdate.title = `Última actualización: ${new Date(lastCheckTime).toLocaleString()}`;
+      settingsLastSync.textContent = `Última sync: ${formatTimestamp(lastCheckTime)}`;
+      settingsLastSync.title = `Última actualización: ${new Date(lastCheckTime).toLocaleString()}`;
     } else {
-      lastUpdate.textContent = 'Nunca';
-      lastUpdate.title = 'No se han realizado chequeos automáticos aún';
+      settingsLastSync.textContent = 'Sin sincronizar aún';
+      settingsLastSync.title = 'No se han realizado chequeos automáticos aún';
     }
   } catch (error) {
     console.error('Error updating status indicators:', error);
-    firebaseStatus.textContent = '⚪ Error';
-    firebaseStatus.className = 'status-badge';
+    settingsConnectionStatus.textContent = '⚪ Error';
+    settingsConnectionStatus.className = 'status-badge';
+    settingsConnectionStatus.title = 'Error al comprobar la conexión';
+    settingsConnectionStatus.setAttribute('aria-label', 'Error al comprobar la conexión');
+    settingsLastSync.textContent = 'Desconocido';
+    settingsLastSync.title = 'No se pudo obtener la última sincronización';
+    setConnectionHintState('error', 'Error al comprobar la conexión');
   }
+}
+
+type ConnectionIndicatorState = 'connected' | 'disconnected' | 'checking' | 'error';
+
+function setConnectionHintState(state: ConnectionIndicatorState, label: string) {
+  if (!connectionHint) {
+    return;
+  }
+
+  connectionHint.dataset.state = state;
+  connectionHint.title = label;
+  connectionHint.setAttribute('aria-label', label);
 }
 
 // Load current settings
