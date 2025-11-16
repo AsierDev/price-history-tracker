@@ -9,6 +9,8 @@ import { logger } from '../../utils/logger';
 import { parsePrice, detectCurrency, looksLikePrice, isOutOfStock } from '../../utils/priceUtils';
 import { extractImage } from '../../utils/metadataExtractor';
 
+const TEXT_NODE_TYPE = typeof Node !== 'undefined' ? Node.TEXT_NODE : 3;
+
 export class PcComponentesAdapter implements PriceAdapter {
   name = 'pccomponentes';
   affiliateNetworkId = 'pccomponentes';
@@ -411,7 +413,7 @@ export class PcComponentesAdapter implements PriceAdapter {
   private getFirstTextNode(element: Element | null): string | undefined {
     if (!element) return undefined;
     for (const node of Array.from(element.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
+      if (node.nodeType === TEXT_NODE_TYPE) {
         const value = node.textContent?.trim();
         if (value) {
           return value;

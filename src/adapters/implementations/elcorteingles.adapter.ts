@@ -210,13 +210,10 @@ export class ElCorteInglesAdapter implements PriceAdapter {
     ];
 
     for (const selector of selectors) {
-      const el = doc.querySelector(selector) as HTMLImageElement | HTMLMetaElement | null;
+      const el = doc.querySelector(selector);
       if (!el) continue;
 
-      const src =
-        el instanceof HTMLMetaElement
-          ? el.content
-          : el.getAttribute('data-src') || el.src || el.currentSrc;
+      const src = this.resolveImageSource(el);
 
       if (src) {
         return src;
@@ -224,6 +221,31 @@ export class ElCorteInglesAdapter implements PriceAdapter {
     }
 
     return extractImage(doc) ?? undefined;
+  }
+
+  private resolveImageSource(element: Element): string | undefined {
+    const tagName = (element.tagName || '').toLowerCase();
+    if (tagName === 'meta') {
+      const content = element.getAttribute('content');
+      if (content && content.trim().length > 0) {
+        return content.trim();
+      }
+    }
+
+    const attributes = ['data-src', 'data-original', 'data-lazy-src', 'src'];
+    for (const attr of attributes) {
+      const value = element.getAttribute?.(attr);
+      if (value && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+
+    const withCurrentSrc = element as HTMLElement & { currentSrc?: string };
+    if (withCurrentSrc.currentSrc && withCurrentSrc.currentSrc.trim().length > 0) {
+      return withCurrentSrc.currentSrc;
+    }
+
+    return undefined;
   }
 
   private checkAvailability(doc: Document): boolean {
