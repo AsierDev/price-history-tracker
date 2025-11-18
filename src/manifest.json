@@ -18,6 +18,29 @@
     "tabs"
   ],
   "host_permissions": [
+    "https://*.amazon.com/*",
+    "https://*.amazon.es/*",
+    "https://*.ebay.com/*",
+    "https://*.ebay.es/*",
+    "https://*.aliexpress.com/*",
+    "https://*.aliexpress.es/*",
+    "https://pccomponentes.com/*",
+    "https://elcorteingles.es/*",
+    "https://mediamarkt.es/*",
+    "https://etsy.com/*",
+    "https://*.shopify.com/*",
+    "https://*.walmart.com/*",
+    "https://target.com/*",
+    "https://*.bestbuy.com/*",
+    "https://*.carrefour.es/*",
+    "https://*.mercadolibre.com/*",
+    "https://*.zalando.es/*",
+    "https://fnac.es/*",
+    "https://*.lidl.es/*",
+    "https://mercadona.es/*",
+    "https://*.decathlon.es/*"
+  ],
+  "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
   ],
