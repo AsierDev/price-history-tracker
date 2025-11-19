@@ -1,179 +1,150 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Política de Privacidad - Price History Tracker</title>
+    <title>Privacy Policy - Price Tracker</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
             line-height: 1.6;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
             color: #333;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        .highlight {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-left: 4px solid #007bff;
-            margin: 20px 0;
-        }
-        .contact-info {
-            background-color: #e8f4f8;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        ul, ol {
-            padding-left: 25px;
-        }
-        .checkbox {
-            margin-right: 8px;
-        }
-        a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
+        h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #1e40af; margin-top: 30px; }
+        .highlight { background: #eff6ff; padding: 15px; border-left: 4px solid #2563eb; margin: 20px 0; }
+        .section { margin-bottom: 30px; }
+        code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; }
+        ul { margin: 10px 0; }
+        li { margin: 8px 0; }
     </style>
 </head>
 <body>
-    <h1>🔒 Política de Privacidad - Price History Tracker</h1>
-    <p><strong>Fecha de última actualización:</strong> 19 de noviembre de 2025</p>
+    <h1>📋 Privacy Policy - Price Tracker</h1>
     
     <div class="highlight">
-        <strong>Resumen ejecutivo:</strong> Price History Tracker es una extensión que respeta tu privacidad. Solo recopilamos datos necesarios para el funcionamiento del rastreador de precios, almacenamos la información localmente, y no vendemos datos a terceros.
+        <strong>Last updated:</strong> November 19, 2025<br>
+        <strong>Version:</strong> 1.0.0
     </div>
 
-    <h2>📋 1. ¿Qué datos recopilamos?</h2>
+    <div class="section">
+        <h2>🔍 1. Information we collect</h2>
+        
+        <h3>Data that we DO store:</h3>
+        <ul>
+            <li><strong>Product URLs:</strong> The web addresses of products that you choose to track manually</li>
+            <li><strong>Prices:</strong> The prices extracted from those URLs in each check</li>
+            <li><strong>Timestamps:</strong> Date and time of each price check</li>
+            <li><strong>Anonymous Identifier (UID):</strong> An automatically generated code by Firebase to sync your data between devices. This UID is NOT linked to your personal identity</li>
+            <li><strong>Settings:</strong> Your notification preferences and check frequency</li>
+        </ul>
+
+        <h3>Data that we DO NOT collect:</h3>
+        <ul>
+            <li>❌ Your complete browsing history</li>
+            <li>❌ Personal information (name, email, address, phone)</li>
+            <li>❌ Payment data or credit cards</li>
+            <li>❌ Third-party cookies unrelated to tracked products</li>
+            <li>❌ Your activity on pages where you haven't added products</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🔥 2. Use of Firebase (Google)</h2>
+        
+        <p><strong>Firebase is mandatory</strong> for the extension's functionality and allows:</p>
+        <ul>
+            <li>Storing price history persistently</li>
+            <li>Syncing your tracked products between devices</li>
+            <li>Maintaining a historical record to generate price evolution charts</li>
+        </ul>
+
+        <p><strong>Data sent to Firebase:</strong></p>
+        <ul>
+            <li>Normalized product URLs</li>
+            <li>Prices and timestamps</li>
+            <li>Automatically generated anonymous UID (not linked to personal identity)</li>
+        </ul>
+
+        <p><strong>Firebase Privacy Policy:</strong> <a href="https://firebase.google.com/support/privacy" target="_blank">firebase.google.com/support/privacy</a></p>
+        
+        <div class="highlight">
+            <strong>⚠️ Important:</strong> There is no option to "disable Firebase" because it is essential for the extension's functionality. If you uninstall the extension, you stop sending data.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 3. How we use your data</h2>
+        <ul>
+            <li><strong>Price tracking:</strong> Automatically check prices of your products</li>
+            <li><strong>Notifications:</strong> Alert you when the price drops according to your preferences</li>
+            <li><strong>Charts:</strong> Show you the historical price evolution</li>
+            <li><strong>Sync:</strong> Keep your tracked products accessible on different devices</li>
+        </ul>
+
+        <p><strong>We do not share, sell, or transfer your data to third parties.</strong></p>
+    </div>
+
+    <div class="section">
+        <h2>🗑️ 4. Data retention and deletion</h2>
+        <ul>
+            <li><strong>Local data:</strong> Automatically deleted when uninstalling the extension</li>
+            <li><strong>Firebase data:</strong> Persists until you manually delete each product from the extension interface ("Delete" button)</li>
+            <li><strong>Complete deletion:</strong> Uninstalling the extension removes access, but historical data in Firebase persists with your anonymous UID. If you want complete Firebase deletion, contact the email at the end of this policy</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🔒 5. Security</h2>
+        <p>We implement basic security measures:</p>
+        <ul>
+            <li>Exclusive HTTPS communication</li>
+            <li>Firebase API keys restricted by domain</li>
+            <li>No storage of sensitive credentials</li>
+            <li>Firestore rules that limit access by authenticated UID</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>👤 6. Your rights</h2>
+        <p>You can:</p>
+        <ul>
+            <li><strong>View your data:</strong> All visible in the extension popup</li>
+            <li><strong>Delete products:</strong> "Delete" button on each product</li>
+            <li><strong>Stop using the service:</strong> Uninstall the extension</li>
+            <li><strong>Request complete Firebase deletion:</strong> Contact the support email</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Note:</strong> This extension does NOT require creating an account or providing email, so there is no "personal data export" or "portability" system in the traditional GDPR sense. Your data is anonymous and linked only to a UID.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📞 7. Contact</h2>
+        <p>For privacy inquiries:</p>
+        <p><strong>Email:</strong> asierp.dev@gmail.com</p>
+        <p><em>We will respond within a reasonable timeframe (usually 5-7 business days)</em></p>
+    </div>
+
+    <div class="section">
+        <h2>🔄 8. Changes to this policy</h2>
+        <p>Any significant change will be notified by updating this page with a new "last updated" date. It is the user's responsibility to review this policy periodically.</p>
+    </div>
+
+    <div class="section">
+        <h2>⚖️ 9. Jurisdiction</h2>
+        <p>This policy is governed by the applicable laws of Spain. Use of this extension implies acceptance of these terms.</p>
+    </div>
+
+    <hr style="margin: 40px 0;">
     
-    <h3>✅ Datos que SÍ recopilamos:</h3>
-    <ul>
-        <li><strong>URLs de productos:</strong> Las direcciones web de productos que eliges rastrear manualmente</li>
-        <li><strong>Precios de productos:</strong> Precios extraídos de las URLs específicas que seguimiento</li>
-        <li><strong>Historial de precios:</strong> Timestamps de verificaciones automáticas cada 6 horas</li>
-        <li><strong>ID anónimo de usuario:</strong> UID generado por Firebase Authentication (opcional, para sincronización)</li>
-        <li><strong>Configuraciones:</strong> Preferencias de notificaciones, umbrales de precio, tema visual</li>
-        <li><strong>Datos de caché:</strong> Información temporal para mejorar el rendimiento</li>
-    </ul>
-
-    <h3>❌ Datos que NO recopilamos:</h3>
-    <ul>
-        <li>Historial de navegación fuera de productos que tú eliges rastrear</li>
-        <li>Información personal identificable (nombre, email, dirección)</li>
-        <li>Datos de pago, tarjetas de crédito o información financiera</li>
-        <li>Cookies de terceros no relacionadas con el servicio</li>
-        <li>Actividad en pestañas o sitios web no relacionados con productos</li>
-        <li>Contenido personal o comunicaciones</li>
-        <li>Datos de otros usuarios o información sensible</li>
-    </ul>
-
-    <h2>🌍 2. Servicios externos</h2>
-    
-    <h3>Firebase (Google Cloud Platform)</h3>
-    <div class="highlight">
-        <p><strong>Uso:</strong> Sincronización opcional de historial de precios entre dispositivos</p>
-        <p><strong>Datos enviados:</strong> URLs normalizadas, precios, timestamps, UID anónimo</p>
-        <p><strong>Ubicación:</strong> Servidores en la UE o Estados Unidos según configuración Firestore</p>
-        <p><strong>Política:</strong> <a href="https://firebase.google.com/support/privacy" target="_blank">https://firebase.google.com/support/privacy</a></p>
-        <p><strong>Control:</strong> Puedes desactivar la sincronización en Configuración > Historial compartido</p>
-    </div>
-
-    <h2>👤 3. Tus derechos (GDPR)</h2>
-    <p>Como usuario, tienes derecho a:</p>
-    <ul>
-        <li><strong>Eliminar productos trackeados:</strong> Botón "Eliminar" en cada producto en el popup</li>
-        <li><strong>Desactivar sincronización Firebase:</strong> Configuración > Historial compartido > Desactivar</li>
-        <li><strong>Exportar tus datos:</strong> Función disponible en Configuración avanzada</li>
-        <li><strong>Solicitar eliminación completa:</strong> Contactar a nuestro oficial de privacidad</li>
-        <li><strong>Rectificar datos:</strong> Editar configuraciones y preferencias</li>
-        <li><strong>Portabilidad:</strong> Descargar todos tus datos en formato JSON</li>
-        <li><strong>Revocación de consentimiento:</strong> Desactivar cualquier funcionalidad opcional</li>
-    </ul>
-
-    <h2>🔒 4. Seguridad y protección</h2>
-    <ul>
-        <li><strong>Cifrado:</strong> Todas las comunicaciones HTTPS exclusivamente</li>
-        <li><strong>Restricciones de API:</strong> Claves API limitadas por dominio específico</li>
-        <li><strong>Sin credenciales:</strong> No almacenamos passwords, tokens o información sensible</li>
-        <li><strong>Firestore Security Rules:</strong> Acceso limitado por UID de usuario autenticado</li>
-        <li><strong>Rate limiting:</strong> Protección contra abuso y ataques automatizados</li>
-        <li><strong>Auditoría regular:</strong> Revisión periódica de permisos y accesos</li>
-    </ul>
-
-    <h2>⏱️ 5. Retención de datos</h2>
-    <ul>
-        <li><strong>Datos locales:</strong> Permanecen hasta que tú los elimines manualmente</li>
-        <li><strong>Datos Firebase:</strong> Eliminación automática al desactivar sincronización</li>
-        <li><strong>Caché temporal:</strong> Limpieza automática cada 7 días</li>
-        <li><strong>Logs de error:</strong> Anonimizados, eliminados después de 30 días</li>
-    </ul>
-
-    <h2>🍪 6. Cookies y seguimiento</h2>
-    <p><strong>No usamos cookies de seguimiento</strong> ni sistemas de analytics que identifiquen usuarios.</p>
-    <p>Solo usamos <strong>cookies técnicas necesarias</strong> para el funcionamiento de la extensión.</p>
-
-    <h2>👶 7. Menores de edad</h2>
-    <p>Price History Tracker está diseñado para usuarios mayores de 13 años. No recopilamos intencionalmente datos de menores sin consentimiento parental verificable.</p>
-
-    <h2>🌍 8. Transferencias internacionales</h2>
-    <p>Datos almacenados en servidores de Google Cloud Platform pueden transferirse entre regiones (UE/EE.UU.). Estas transferencias cumplen con:</p>
-    <ul>
-        <li>Decisiones de adecuación de la Comisión Europea</li>
-        <li>Cláusulas contractuales tipo (Standard Contractual Clauses)</li>
-        <li>Escudo de privacidad UE-EE.UU. (cuando aplicable)</li>
-    </ul>
-
-    <h2>📞 9. Contacto y ejercicio de derechos</h2>
-    <div class="contact-info">
-        <h3>Oficial de Privacidad</h3>
-        <p><strong>Email:</strong> <a href="mailto:privacy@pricehistorytracker.com">privacy@pricehistorytracker.com</a></p>
-        <p><strong>Respuesta típica:</strong> 48-72 horas</p>
-        <p><strong>Soporte técnico:</strong> <a href="mailto:support@pricehistorytracker.com">support@pricehistorytracker.com</a></p>
-    </div>
-
-    <h3>Para ejercer tus derechos:</h3>
-    <ol>
-        <li>Envía email con tu solicitud específica</li>
-        <li>Incluye el UID de tu instalación (disponible en Configuración)</li>
-        <li>Especifica qué datos quieres eliminar, modificar o exportar</li>
-        <li>Recibirás confirmación por email cuando se complete la solicitud</li>
-    </ol>
-
-    <h2>🔄 10. Cambios en esta política</h2>
-    <p>Notificaremos cambios significativos con al menos 30 días de antelación mediante:</p>
-    <ul>
-        <li>Actualización en esta página web</li>
-        <li>Notificación en el popup de la extensión</li>
-        <li>Email a usuarios registrados (si aplicable)</li>
-    </ul>
-
-    <h2>⚖️ 11. Marco legal</h2>
-    <p>Esta política cumple con:</p>
-    <ul>
-        <li>Reglamento General de Protección de Datos (GDPR) - UE</li>
-        <li>California Consumer Privacy Act (CCPA) - California, EE.UU.</li>
-        <li>Ley Orgánica de Protección de Datos (LOPD) - España</li>
-        <li>Directrices de Chrome Web Store - Google</li>
-    </ul>
-
-    <h2>📋 12. Consentimiento</h2>
-    <p>Al instalar y usar Price History Tracker, confirmas que:</p>
-    <ul>
-        <li>Has leído y comprendido esta política de privacidad</li>
-        <li>Consientes al procesamiento de datos como se describe</li>
-        <li>Tienes al menos 13 años de edad</li>
-        <li>Aceptas los términos de uso de la extensión</li>
-    </ul>
-
-    <hr>
-    <p><small>Esta política está disponible en múltiples idiomas. Para traducciones, visita nuestro repositorio en GitHub.</small></p>
-    <p><small>Última revisión: 19 de noviembre de 2025 | Versión: 1.0</small></p>
+    <p style="font-size: 0.9em; color: #666;">
+        <strong>Price Tracker</strong> - Chrome extension for price tracking<br>
+        Developed independently. Not affiliated with any mentioned store.
+    </p>
 </body>
 </html>
