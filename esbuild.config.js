@@ -99,6 +99,30 @@ function copyStatic() {
 
     copyDir(localesDir, distLocalesDir);
   }
+
+ // Copy icons to dist/icons/
+  const iconsSourceDir = 'src/popup/icons';
+  const iconsDestDir = 'dist/icons';
+
+  if (existsSync(iconsSourceDir)) {
+    if (!existsSync(iconsDestDir)) {
+      mkdirSync(iconsDestDir, { recursive: true });
+    }
+    
+    const requiredIcons = ['icon-16.png', 'icon-48.png', 'icon-128.png'];
+    
+    requiredIcons.forEach(icon => {
+      const srcPath = join(iconsSourceDir, icon);
+      const destPath = join(iconsDestDir, icon);
+      
+      if (existsSync(srcPath)) {
+        copyFileSync(srcPath, destPath);
+        console.log(`✓ Copied ${srcPath} → ${destPath}`);
+      } else {
+        console.warn(`⚠️  Icon not found: ${srcPath}`);
+      }
+    });
+  }
 }
 
 async function build() {

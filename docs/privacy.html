@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad - Price History Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .highlight {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #007bff;
+            margin: 20px 0;
+        }
+        .contact-info {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        ul, ol {
+            padding-left: 25px;
+        }
+        .checkbox {
+            margin-right: 8px;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 Política de Privacidad - Price History Tracker</h1>
+    <p><strong>Fecha de última actualización:</strong> 19 de noviembre de 2025</p>
+    
+    <div class="highlight">
+        <strong>Resumen ejecutivo:</strong> Price History Tracker es una extensión que respeta tu privacidad. Solo recopilamos datos necesarios para el funcionamiento del rastreador de precios, almacenamos la información localmente, y no vendemos datos a terceros.
+    </div>
+
+    <h2>📋 1. ¿Qué datos recopilamos?</h2>
+    
+    <h3>✅ Datos que SÍ recopilamos:</h3>
+    <ul>
+        <li><strong>URLs de productos:</strong> Las direcciones web de productos que eliges rastrear manualmente</li>
+        <li><strong>Precios de productos:</strong> Precios extraídos de las URLs específicas que seguimiento</li>
+        <li><strong>Historial de precios:</strong> Timestamps de verificaciones automáticas cada 6 horas</li>
+        <li><strong>ID anónimo de usuario:</strong> UID generado por Firebase Authentication (opcional, para sincronización)</li>
+        <li><strong>Configuraciones:</strong> Preferencias de notificaciones, umbrales de precio, tema visual</li>
+        <li><strong>Datos de caché:</strong> Información temporal para mejorar el rendimiento</li>
+    </ul>
+
+    <h3>❌ Datos que NO recopilamos:</h3>
+    <ul>
+        <li>Historial de navegación fuera de productos que tú eliges rastrear</li>
+        <li>Información personal identificable (nombre, email, dirección)</li>
+        <li>Datos de pago, tarjetas de crédito o información financiera</li>
+        <li>Cookies de terceros no relacionadas con el servicio</li>
+        <li>Actividad en pestañas o sitios web no relacionados con productos</li>
+        <li>Contenido personal o comunicaciones</li>
+        <li>Datos de otros usuarios o información sensible</li>
+    </ul>
+
+    <h2>🌍 2. Servicios externos</h2>
+    
+    <h3>Firebase (Google Cloud Platform)</h3>
+    <div class="highlight">
+        <p><strong>Uso:</strong> Sincronización opcional de historial de precios entre dispositivos</p>
+        <p><strong>Datos enviados:</strong> URLs normalizadas, precios, timestamps, UID anónimo</p>
+        <p><strong>Ubicación:</strong> Servidores en la UE o Estados Unidos según configuración Firestore</p>
+        <p><strong>Política:</strong> <a href="https://firebase.google.com/support/privacy" target="_blank">https://firebase.google.com/support/privacy</a></p>
+        <p><strong>Control:</strong> Puedes desactivar la sincronización en Configuración > Historial compartido</p>
+    </div>
+
+    <h2>👤 3. Tus derechos (GDPR)</h2>
+    <p>Como usuario, tienes derecho a:</p>
+    <ul>
+        <li><strong>Eliminar productos trackeados:</strong> Botón "Eliminar" en cada producto en el popup</li>
+        <li><strong>Desactivar sincronización Firebase:</strong> Configuración > Historial compartido > Desactivar</li>
+        <li><strong>Exportar tus datos:</strong> Función disponible en Configuración avanzada</li>
+        <li><strong>Solicitar eliminación completa:</strong> Contactar a nuestro oficial de privacidad</li>
+        <li><strong>Rectificar datos:</strong> Editar configuraciones y preferencias</li>
+        <li><strong>Portabilidad:</strong> Descargar todos tus datos en formato JSON</li>
+        <li><strong>Revocación de consentimiento:</strong> Desactivar cualquier funcionalidad opcional</li>
+    </ul>
+
+    <h2>🔒 4. Seguridad y protección</h2>
+    <ul>
+        <li><strong>Cifrado:</strong> Todas las comunicaciones HTTPS exclusivamente</li>
+        <li><strong>Restricciones de API:</strong> Claves API limitadas por dominio específico</li>
+        <li><strong>Sin credenciales:</strong> No almacenamos passwords, tokens o información sensible</li>
+        <li><strong>Firestore Security Rules:</strong> Acceso limitado por UID de usuario autenticado</li>
+        <li><strong>Rate limiting:</strong> Protección contra abuso y ataques automatizados</li>
+        <li><strong>Auditoría regular:</strong> Revisión periódica de permisos y accesos</li>
+    </ul>
+
+    <h2>⏱️ 5. Retención de datos</h2>
+    <ul>
+        <li><strong>Datos locales:</strong> Permanecen hasta que tú los elimines manualmente</li>
+        <li><strong>Datos Firebase:</strong> Eliminación automática al desactivar sincronización</li>
+        <li><strong>Caché temporal:</strong> Limpieza automática cada 7 días</li>
+        <li><strong>Logs de error:</strong> Anonimizados, eliminados después de 30 días</li>
+    </ul>
+
+    <h2>🍪 6. Cookies y seguimiento</h2>
+    <p><strong>No usamos cookies de seguimiento</strong> ni sistemas de analytics que identifiquen usuarios.</p>
+    <p>Solo usamos <strong>cookies técnicas necesarias</strong> para el funcionamiento de la extensión.</p>
+
+    <h2>👶 7. Menores de edad</h2>
+    <p>Price History Tracker está diseñado para usuarios mayores de 13 años. No recopilamos intencionalmente datos de menores sin consentimiento parental verificable.</p>
+
+    <h2>🌍 8. Transferencias internacionales</h2>
+    <p>Datos almacenados en servidores de Google Cloud Platform pueden transferirse entre regiones (UE/EE.UU.). Estas transferencias cumplen con:</p>
+    <ul>
+        <li>Decisiones de adecuación de la Comisión Europea</li>
+        <li>Cláusulas contractuales tipo (Standard Contractual Clauses)</li>
+        <li>Escudo de privacidad UE-EE.UU. (cuando aplicable)</li>
+    </ul>
+
+    <h2>📞 9. Contacto y ejercicio de derechos</h2>
+    <div class="contact-info">
+        <h3>Oficial de Privacidad</h3>
+        <p><strong>Email:</strong> <a href="mailto:privacy@pricehistorytracker.com">privacy@pricehistorytracker.com</a></p>
+        <p><strong>Respuesta típica:</strong> 48-72 horas</p>
+        <p><strong>Soporte técnico:</strong> <a href="mailto:support@pricehistorytracker.com">support@pricehistorytracker.com</a></p>
+    </div>
+
+    <h3>Para ejercer tus derechos:</h3>
+    <ol>
+        <li>Envía email con tu solicitud específica</li>
+        <li>Incluye el UID de tu instalación (disponible en Configuración)</li>
+        <li>Especifica qué datos quieres eliminar, modificar o exportar</li>
+        <li>Recibirás confirmación por email cuando se complete la solicitud</li>
+    </ol>
+
+    <h2>🔄 10. Cambios en esta política</h2>
+    <p>Notificaremos cambios significativos con al menos 30 días de antelación mediante:</p>
+    <ul>
+        <li>Actualización en esta página web</li>
+        <li>Notificación en el popup de la extensión</li>
+        <li>Email a usuarios registrados (si aplicable)</li>
+    </ul>
+
+    <h2>⚖️ 11. Marco legal</h2>
+    <p>Esta política cumple con:</p>
+    <ul>
+        <li>Reglamento General de Protección de Datos (GDPR) - UE</li>
+        <li>California Consumer Privacy Act (CCPA) - California, EE.UU.</li>
+        <li>Ley Orgánica de Protección de Datos (LOPD) - España</li>
+        <li>Directrices de Chrome Web Store - Google</li>
+    </ul>
+
+    <h2>📋 12. Consentimiento</h2>
+    <p>Al instalar y usar Price History Tracker, confirmas que:</p>
+    <ul>
+        <li>Has leído y comprendido esta política de privacidad</li>
+        <li>Consientes al procesamiento de datos como se describe</li>
+        <li>Tienes al menos 13 años de edad</li>
+        <li>Aceptas los términos de uso de la extensión</li>
+    </ul>
+
+    <hr>
+    <p><small>Esta política está disponible en múltiples idiomas. Para traducciones, visita nuestro repositorio en GitHub.</small></p>
+    <p><small>Última revisión: 19 de noviembre de 2025 | Versión: 1.0</small></p>
+</body>
+</html>
