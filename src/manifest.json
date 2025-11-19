@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Price History Tracker",
+  "default_locale": "en",
+  "name": "__MSG_extensionName__",
   "version": "1.0.0",
-  "description": "Track price history on Amazon, eBay, and AliExpress. Get notified when prices drop.",
+  "description": "__MSG_extensionDescription__",
 
   "icons": {
     "16": "popup/icons/icon16.png",

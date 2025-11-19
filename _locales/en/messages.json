@@ -1,0 +1,316 @@
+{
+  "extensionName": {
+    "message": "Price Tracker",
+    "description": "Name of the extension"
+  },
+  "extensionDescription": {
+    "message": "Smart price tracking",
+    "description": "Description of the extension"
+  },
+  "activeProducts": {
+    "message": "ACTIVE PRODUCTS"
+  },
+  "totalSavings": {
+    "message": "TOTAL SAVINGS"
+  },
+  "savingsTooltip": {
+    "message": "Sum of money saved compared to initial price of each product (only price drops are counted)."
+  },
+  "searchPlaceholder": {
+    "message": "Search products..."
+  },
+  "sortBy": {
+    "message": "Sort by"
+  },
+  "sortDateAdded": {
+    "message": "Date added (recent)"
+  },
+  "sortStore": {
+    "message": "Store / domain"
+  },
+  "sortPrice": {
+    "message": "Current price"
+  },
+  "sortDiscount": {
+    "message": "Discount (%)"
+  },
+  "historyButton": {
+    "message": "History"
+  },
+  "viewStoreButton": {
+    "message": "View store"
+  },
+  "removeButton": {
+    "message": "Remove"
+  },
+  "addedOn": {
+    "message": "Added on"
+  },
+  "settingsTitle": {
+    "message": "Settings"
+  },
+  "basicSettings": {
+    "message": "BASIC SETTINGS"
+  },
+  "notificationsSection": {
+    "message": "Notifications"
+  },
+  "enableNotifications": {
+    "message": "Enable notifications"
+  },
+  "notifyWhenDrops": {
+    "message": "Notify me when drops at least:"
+  },
+  "minPercentageTooltip": {
+    "message": "Minimum percentage drop compared to initial price."
+  },
+  "checkFrequency": {
+    "message": "Check frequency"
+  },
+  "freq1h": {
+    "message": "Every 1 hour"
+  },
+  "freq3h": {
+    "message": "Every 3 hours"
+  },
+  "freq6h": {
+    "message": "Every 6 hours (recommended)"
+  },
+  "freq12h": {
+    "message": "Every 12 hours"
+  },
+  "freq24h": {
+    "message": "Every 24 hours"
+  },
+  "testNotification": {
+    "message": "Test notification"
+  },
+  "behaviorSection": {
+    "message": "Behavior"
+  },
+  "extensionTheme": {
+    "message": "Extension theme"
+  },
+  "themeSystem": {
+    "message": "Follow system"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "themeToggleHint": {
+    "message": "You can also toggle quickly from the top right button."
+  },
+  "floatingButton": {
+    "message": "Floating button"
+  },
+  "floatingCompact": {
+    "message": "Compact by default"
+  },
+  "floatingExpanded": {
+    "message": "Show expanded"
+  },
+  "floatingButtonTooltip": {
+    "message": "Controls whether the floating button appears in compact mode when loading a page."
+  },
+  "advancedOptions": {
+    "message": "Advanced options"
+  },
+  "connectionStatus": {
+    "message": "Connection status"
+  },
+  "connected": {
+    "message": "Connected"
+  },
+  "lastSync": {
+    "message": "Last sync:"
+  },
+  "sharedHistory": {
+    "message": "Shared history"
+  },
+  "connectedUID": {
+    "message": "Connected (UID:"
+  },
+  "testFirebaseConnection": {
+    "message": "Test Firebase connection"
+  },
+  "recoverySection": {
+    "message": "Recovery"
+  },
+  "recoveryDescription": {
+    "message": "Retry products temporarily blocked due to too many attempts."
+  },
+  "retryBlockedProducts": {
+    "message": "Retry blocked products"
+  },
+  "emptyStateTitle": {
+    "message": "You have no products being tracked"
+  },
+  "emptyStateSubtitle": {
+    "message": "Navigate to a store and add products to begin"
+  },
+  "fullSupport": {
+    "message": "Full support"
+  },
+  "verifiedStore": {
+    "message": "Verified store"
+  },
+  "manualTracking": {
+    "message": "Manual tracking"
+  },
+  "confirmRemoveProduct": {
+    "message": "Are you sure you want to stop tracking this product?"
+  },
+  "removeProductError": {
+    "message": "Could not remove the product. Try again."
+  },
+  "imageUnavailable": {
+    "message": "Image unavailable"
+  },
+  "errorLoadingHistory": {
+    "message": "(Error loading history)"
+  },
+  "priceLabel": {
+    "message": "Price"
+  },
+  "vsInitial": {
+    "message": "vs initial:"
+  },
+  "reduceChart": {
+    "message": "Reduce chart"
+  },
+  "expandChart": {
+    "message": "Expand chart"
+  },
+  "checkingConnection": {
+    "message": "Checking connection..."
+  },
+  "disconnected": {
+    "message": "🔴 Disconnected"
+  },
+  "notSyncedYet": {
+    "message": "Not synced yet"
+  },
+  "connectionCheckError": {
+    "message": "Error checking connection"
+  },
+  "notConnectedFirebase": {
+    "message": "❌ Not connected. Firebase needs configuration."
+  },
+  "saved": {
+    "message": "✅ Saved!"
+  },
+  "saveSettings": {
+    "message": "💾 Save settings"
+  },
+  "sending": {
+    "message": "📤 Sending..."
+  },
+  "testNotificationTitle": {
+    "message": "🎉 Test Notification"
+  },
+  "notificationsWorking": {
+    "message": "Notifications are working correctly!"
+  },
+  "sent": {
+    "message": "✅ Sent!"
+  },
+  "testNotificationButton": {
+    "message": "🔔 Test notification"
+  },
+  "testing": {
+    "message": "🧪 Testing..."
+  },
+  "connectedSuccessfully": {
+    "message": "✅ Connected successfully!"
+  },
+  "notConfiguredFirebase": {
+    "message": "❌ Not configured. Check FIREBASE_* environment variables."
+  },
+  "retrying": {
+    "message": "⏳ Retrying..."
+  },
+  "retried": {
+    "message": "✅ Retried!"
+  },
+  "retryBlockedProducts": {
+    "message": "🔄 Retry blocked products"
+  },
+  "priceDropTitle": {
+    "message": "💰 Price Drop!"
+  },
+  "viewProduct": {
+    "message": "View Product"
+  },
+  "stopTracking": {
+    "message": "Stop Tracking"
+  },
+  "minimizeFloatingControl": {
+    "message": "Minimize floating control"
+  },
+  "trackProductPrice": {
+    "message": "Track this product's price"
+  },
+  "manualMode": {
+    "message": "Manual mode"
+  },
+  "selectPrice": {
+    "message": "Select price"
+  },
+  "trackPrice": {
+    "message": "Track price"
+  },
+  "selectPriceOnPage": {
+    "message": "Select the price on the page"
+  },
+  "extractingPrice": {
+    "message": "Extracting price..."
+  },
+  "clickOnPrice": {
+    "message": "Click on the price…"
+  },
+  "productAdded": {
+    "message": "Product added ✅"
+  },
+  "couldNotAdd": {
+    "message": "Could not add"
+  },
+  "unknownError": {
+    "message": "Unknown error"
+  },
+  "extractingData": {
+    "message": "Extracting data…"
+  },
+  "siteNotSupported": {
+    "message": "Site not supported"
+  },
+  "productUnavailable": {
+    "message": "Product unavailable"
+  },
+  "processingSelection": {
+    "message": "Processing selection…"
+  },
+  "minimizedCanReopen": {
+    "message": "Minimized. You can reopen it from the icon."
+  },
+  "clickOnPriceElement": {
+    "message": "🎯 Click on the price element"
+  },
+  "pressEscToCancel": {
+    "message": "Press ESC to cancel"
+  },
+  "looksLikePrice": {
+    "message": "Looks like a price"
+  },
+  "mightNotBePrice": {
+    "message": "Might not be a price"
+  },
+  "doesNotLookLikePrice": {
+    "message": "❌ This doesn't look like a price"
+  },
+  "selectElementWithPrice": {
+    "message": "Please select an element that contains a price with currency symbol."
+  }
+}

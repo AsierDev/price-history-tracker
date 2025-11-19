@@ -74,6 +74,31 @@ function copyStatic() {
       }
     });
   }
+
+  // Copy _locales directory
+  const localesDir = '_locales';
+  if (existsSync(localesDir)) {
+    const distLocalesDir = 'dist/_locales';
+
+    const copyDir = (src, dest) => {
+      if (!existsSync(dest)) {
+        mkdirSync(dest, { recursive: true });
+      }
+      const items = readdirSync(src);
+      items.forEach(item => {
+        const srcPath = join(src, item);
+        const destPath = join(dest, item);
+        if (statSync(srcPath).isDirectory()) {
+          copyDir(srcPath, destPath);
+        } else {
+          copyFileSync(srcPath, destPath);
+          console.log(`✓ Copied ${srcPath} → ${destPath}`);
+        }
+      });
+    };
+
+    copyDir(localesDir, distLocalesDir);
+  }
 }
 
 async function build() {

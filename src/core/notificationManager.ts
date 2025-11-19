@@ -2,8 +2,9 @@
  * Chrome Notifications wrapper for price drop alerts
  */
 
-import type { NotificationData } from './types';
-import { logger } from '../utils/logger';
+import type { NotificationData } from "./types";
+import { logger } from "../utils/logger";
+import { t } from "../utils/i18n";
 
 export class NotificationManager {
   /**
@@ -12,26 +13,25 @@ export class NotificationManager {
   static async notifyPriceDrop(data: NotificationData): Promise<void> {
     try {
       const notificationId = `price-drop-${data.productId}`;
-      
+
       await chrome.notifications.create(notificationId, {
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('popup/icons/icon128.svg'),
-        title: '💰 ¡Bajada de Precio!',
-        message: `${data.title}\n${data.oldPrice}€ → ${data.newPrice}€ (-${data.percentDrop.toFixed(1)}%)`,
-        buttons: [
-          { title: 'Ver Producto' },
-          { title: 'Dejar de Trackear' },
-        ],
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("popup/icons/icon128.svg"),
+        title: t("priceDropTitle"),
+        message: `${data.title}\n${data.oldPrice}€ → ${
+          data.newPrice
+        }€ (-${data.percentDrop.toFixed(1)}%)`,
+        buttons: [{ title: t("viewProduct") }, { title: t("stopTracking") }],
         priority: 2,
         requireInteraction: true,
       });
 
-      logger.info('Price drop notification sent', {
+      logger.info("Price drop notification sent", {
         productId: data.productId,
         percentDrop: data.percentDrop,
       });
     } catch (error) {
-      logger.error('Failed to send notification', error, {
+      logger.error("Failed to send notification", error, {
         productId: data.productId,
       });
     }
@@ -45,7 +45,7 @@ export class NotificationManager {
       async (notificationId: string, buttonIndex: number) => {
         try {
           // Extract product ID from notification ID
-          const productId = notificationId.replace('price-drop-', '');
+          const productId = notificationId.replace("price-drop-", "");
 
           if (buttonIndex === 0) {
             // "Ver Producto" button
@@ -58,7 +58,7 @@ export class NotificationManager {
           // Clear the notification
           await chrome.notifications.clear(notificationId);
         } catch (error) {
-          logger.error('Failed to handle notification button click', error, {
+          logger.error("Failed to handle notification button click", error, {
             notificationId,
             buttonIndex,
           });
@@ -67,7 +67,7 @@ export class NotificationManager {
     );
 
     chrome.notifications.onClosed.addListener((notificationId: string) => {
-      logger.debug('Notification closed', { notificationId });
+      logger.debug("Notification closed", { notificationId });
     });
   }
 
@@ -77,11 +77,11 @@ export class NotificationManager {
   private static async handleViewProduct(productId: string): Promise<void> {
     // Send message to service worker to open product URL
     await chrome.runtime.sendMessage({
-      action: 'openProduct',
+      action: "openProduct",
       productId,
     });
-    
-    logger.info('Opening product from notification', { productId });
+
+    logger.info("Opening product from notification", { productId });
   }
 
   /**
@@ -90,11 +90,11 @@ export class NotificationManager {
   private static async handleStopTracking(productId: string): Promise<void> {
     // Send message to service worker to remove product
     await chrome.runtime.sendMessage({
-      action: 'removeProduct',
+      action: "removeProduct",
       productId,
     });
-    
-    logger.info('Stopped tracking from notification', { productId });
+
+    logger.info("Stopped tracking from notification", { productId });
   }
 
   /**
@@ -104,22 +104,24 @@ export class NotificationManager {
     return new Promise((resolve) => {
       chrome.notifications.getAll((notifications) => {
         try {
-          if (notifications && typeof notifications === 'object') {
-            const clearPromises = Object.keys(notifications).map(id =>
+          if (notifications && typeof notifications === "object") {
+            const clearPromises = Object.keys(notifications).map((id) =>
               chrome.notifications.clear(id)
             );
-            Promise.all(clearPromises).then(() => {
-              logger.debug('All notifications cleared');
-              resolve();
-            }).catch((error) => {
-              logger.error('Failed to clear notifications', error);
-              resolve();
-            });
+            Promise.all(clearPromises)
+              .then(() => {
+                logger.debug("All notifications cleared");
+                resolve();
+              })
+              .catch((error) => {
+                logger.error("Failed to clear notifications", error);
+                resolve();
+              });
           } else {
             resolve();
           }
         } catch (error) {
-          logger.error('Failed to clear notifications', error);
+          logger.error("Failed to clear notifications", error);
           resolve();
         }
       });

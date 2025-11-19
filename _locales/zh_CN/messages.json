@@ -1,0 +1,313 @@
+{
+  "extensionName": {
+    "message": "价格跟踪器",
+    "description": "扩展名称"
+  },
+  "extensionDescription": {
+    "message": "智能价格跟踪",
+    "description": "扩展描述"
+  },
+  "activeProducts": {
+    "message": "活跃产品"
+  },
+  "totalSavings": {
+    "message": "总节省"
+  },
+  "savingsTooltip": {
+    "message": "与每个产品的初始价格相比节省的金额总和（仅计算价格下降）。"
+  },
+  "searchPlaceholder": {
+    "message": "搜索产品..."
+  },
+  "sortBy": {
+    "message": "排序方式"
+  },
+  "sortDateAdded": {
+    "message": "添加日期（最新）"
+  },
+  "sortStore": {
+    "message": "商店 / 域名"
+  },
+  "sortPrice": {
+    "message": "当前价格"
+  },
+  "sortDiscount": {
+    "message": "折扣 (%)"
+  },
+  "historyButton": {
+    "message": "历史"
+  },
+  "viewStoreButton": {
+    "message": "查看商店"
+  },
+  "removeButton": {
+    "message": "移除"
+  },
+  "addedOn": {
+    "message": "添加于"
+  },
+  "settingsTitle": {
+    "message": "设置"
+  },
+  "basicSettings": {
+    "message": "基本设置"
+  },
+  "notificationsSection": {
+    "message": "通知"
+  },
+  "enableNotifications": {
+    "message": "启用通知"
+  },
+  "notifyWhenDrops": {
+    "message": "当下降至少时通知我："
+  },
+  "minPercentageTooltip": {
+    "message": "与初始价格相比的最小下降百分比。"
+  },
+  "checkFrequency": {
+    "message": "检查频率"
+  },
+  "freq1h": {
+    "message": "每 1 小时"
+  },
+  "freq3h": {
+    "message": "每 3 小时"
+  },
+  "freq6h": {
+    "message": "每 6 小时（推荐）"
+  },
+  "freq12h": {
+    "message": "每 12 小时"
+  },
+  "freq24h": {
+    "message": "每 24 小时"
+  },
+  "testNotification": {
+    "message": "测试通知"
+  },
+  "behaviorSection": {
+    "message": "行为"
+  },
+  "extensionTheme": {
+    "message": "扩展主题"
+  },
+  "themeSystem": {
+    "message": "跟随系统"
+  },
+  "themeLight": {
+    "message": "浅色"
+  },
+  "themeDark": {
+    "message": "深色"
+  },
+  "themeToggleHint": {
+    "message": "您也可以从右上角按钮快速切换。"
+  },
+  "floatingButton": {
+    "message": "浮动按钮"
+  },
+  "floatingCompact": {
+    "message": "默认紧凑"
+  },
+  "floatingExpanded": {
+    "message": "显示展开"
+  },
+  "floatingButtonTooltip": {
+    "message": "控制浮动按钮在加载页面时是否以紧凑模式出现。"
+  },
+  "advancedOptions": {
+    "message": "高级选项"
+  },
+  "connectionStatus": {
+    "message": "连接状态"
+  },
+  "connected": {
+    "message": "已连接"
+  },
+  "lastSync": {
+    "message": "最后同步："
+  },
+  "sharedHistory": {
+    "message": "共享历史"
+  },
+  "connectedUID": {
+    "message": "已连接 (UID:"
+  },
+  "testFirebaseConnection": {
+    "message": "测试 Firebase 连接"
+  },
+  "recoverySection": {
+    "message": "恢复"
+  },
+  "recoveryDescription": {
+    "message": "重试因尝试次数过多而暂时被阻止的产品。"
+  },
+  "retryBlockedProducts": {
+    "message": "重试被阻止的产品"
+  },
+  "emptyStateTitle": {
+    "message": "您没有正在跟踪的产品"
+  },
+  "emptyStateSubtitle": {
+    "message": "导航到商店并添加产品以开始"
+  },
+  "fullSupport": {
+    "message": "完全支持"
+  },
+  "verifiedStore": {
+    "message": "已验证商店"
+  },
+  "manualTracking": {
+    "message": "手动跟踪"
+  },
+  "confirmRemoveProduct": {
+    "message": "您确定要停止跟踪此产品吗？"
+  },
+  "removeProductError": {
+    "message": "无法删除产品。请重试。"
+  },
+  "imageUnavailable": {
+    "message": "图像不可用"
+  },
+  "errorLoadingHistory": {
+    "message": "（加载历史记录时出错）"
+  },
+  "priceLabel": {
+    "message": "价格"
+  },
+  "vsInitial": {
+    "message": "与初始价格相比："
+  },
+  "reduceChart": {
+    "message": "缩小图表"
+  },
+  "expandChart": {
+    "message": "展开图表"
+  },
+  "checkingConnection": {
+    "message": "检查连接..."
+  },
+  "disconnected": {
+    "message": "🔴 已断开连接"
+  },
+  "notSyncedYet": {
+    "message": "尚未同步"
+  },
+  "connectionCheckError": {
+    "message": "检查连接时出错"
+  },
+  "notConnectedFirebase": {
+    "message": "❌ 未连接。Firebase 需要配置。"
+  },
+  "saved": {
+    "message": "✅ 已保存！"
+  },
+  "saveSettings": {
+    "message": "💾 保存设置"
+  },
+  "sending": {
+    "message": "📤 发送中..."
+  },
+  "testNotificationTitle": {
+    "message": "🎉 测试通知"
+  },
+  "notificationsWorking": {
+    "message": "通知工作正常！"
+  },
+  "sent": {
+    "message": "✅ 已发送！"
+  },
+  "testNotificationButton": {
+    "message": "🔔 测试通知"
+  },
+  "testing": {
+    "message": "🧪 测试中..."
+  },
+  "connectedSuccessfully": {
+    "message": "✅ 连接成功！"
+  },
+  "notConfiguredFirebase": {
+    "message": "❌ 未配置。请检查 FIREBASE_* 环境变量。"
+  },
+  "retrying": {
+    "message": "⏳ 重试中..."
+  },
+  "retried": {
+    "message": "✅ 已重试！"
+  },
+  "priceDropTitle": {
+    "message": "💰 价格下降！"
+  },
+  "viewProduct": {
+    "message": "查看产品"
+  },
+  "stopTracking": {
+    "message": "停止跟踪"
+  },
+  "minimizeFloatingControl": {
+    "message": "最小化浮动控件"
+  },
+  "trackProductPrice": {
+    "message": "跟踪此产品的价格"
+  },
+  "manualMode": {
+    "message": "手动模式"
+  },
+  "selectPrice": {
+    "message": "选择价格"
+  },
+  "trackPrice": {
+    "message": "跟踪价格"
+  },
+  "selectPriceOnPage": {
+    "message": "在页面上选择价格"
+  },
+  "extractingPrice": {
+    "message": "提取价格..."
+  },
+  "clickOnPrice": {
+    "message": "点击价格…"
+  },
+  "productAdded": {
+    "message": "产品已添加 ✅"
+  },
+  "couldNotAdd": {
+    "message": "无法添加"
+  },
+  "unknownError": {
+    "message": "未知错误"
+  },
+  "extractingData": {
+    "message": "提取数据…"
+  },
+  "siteNotSupported": {
+    "message": "站点不受支持"
+  },
+  "productUnavailable": {
+    "message": "产品不可用"
+  },
+  "processingSelection": {
+    "message": "处理选择…"
+  },
+  "minimizedCanReopen": {
+    "message": "已最小化。您可以从图标重新打开它。"
+  },
+  "clickOnPriceElement": {
+    "message": "🎯 点击价格元素"
+  },
+  "pressEscToCancel": {
+    "message": "按 ESC 取消"
+  },
+  "looksLikePrice": {
+    "message": "看起来像价格"
+  },
+  "mightNotBePrice": {
+    "message": "可能不是价格"
+  },
+  "doesNotLookLikePrice": {
+    "message": "❌ 这看起来不像价格"
+  },
+  "selectElementWithPrice": {
+    "message": "请选择包含带有货币符号的价格的元素。"
+  }
+}

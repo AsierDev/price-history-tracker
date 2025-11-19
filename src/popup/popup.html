@@ -11,7 +11,7 @@
     <header class="header">
       <div class="header-title">
         <div class="title-line">
-          <h1>💰 Price Tracker</h1>
+          <h1 data-i18n="extensionName">💰 Price Tracker</h1>
           <span
             id="connectionHint"
             class="connection-dot"
@@ -22,7 +22,7 @@
             title="Estado de conexión: comprobando"
           ></span>
         </div>
-        <p class="header-subtitle">Seguimiento inteligente de precios</p>
+        <p class="header-subtitle" data-i18n="extensionDescription">Seguimiento inteligente de precios</p>
       </div>
       <div class="header-actions">
         <button id="settingsBtn" class="icon-btn" title="Configuración" aria-label="Abrir configuración">
@@ -39,17 +39,17 @@
 
     <section class="kpi-row" aria-label="Indicadores clave">
       <div class="kpi-card kpi-card--primary">
-        <span class="stat-label">Productos activos</span>
+        <span class="stat-label" data-i18n="activeProducts">Productos activos</span>
         <span class="stat-value" id="totalProducts">0</span>
       </div>
       <div class="kpi-card kpi-card--savings">
         <div class="stat-label with-helper">
-          <span>AHORRO ACUMULADO</span>
+          <span data-i18n="totalSavings">AHORRO ACUMULADO</span>
           <button
             type="button"
             class="info-btn"
             aria-label="¿Qué significa el ahorro acumulado?"
-            title="Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio)."
+            data-i18n-title="savingsTooltip" title="Suma del dinero ahorrado respecto al precio inicial de cada producto (sólo se cuentan bajadas de precio)."
           >
             ℹ️
           </button>
@@ -63,18 +63,18 @@
         <input 
           type="text" 
           id="searchInput" 
-          placeholder="Buscar productos..."
+          data-i18n-placeholder="searchPlaceholder" placeholder="Buscar productos..."
           aria-label="Buscar productos"
           autocomplete="off"
         >
       </div>
       <label class="sort-control" for="sortSelect">
-        <span>Ordenar por</span>
+        <span data-i18n="sortBy">Ordenar por</span>
         <select id="sortSelect" aria-label="Ordenar lista de productos">
-          <option value="date" selected>Fecha añadido (recientes)</option>
-          <option value="store">Tienda / dominio</option>
-          <option value="price">Precio actual</option>
-          <option value="discount">Descuento (%)</option>
+          <option value="date" selected data-i18n="sortDateAdded">Fecha añadido (recientes)</option>
+          <option value="store" data-i18n="sortStore">Tienda / dominio</option>
+          <option value="price" data-i18n="sortPrice">Precio actual</option>
+          <option value="discount" data-i18n="sortDiscount">Descuento (%)</option>
         </select>
       </label>
     </div>
@@ -85,8 +85,8 @@
 
     <div id="emptyState" class="empty-state" style="display: none;">
       <div class="empty-icon">📦</div>
-      <h3>Sin productos activos</h3>
-      <p>Visita tu tienda favorita y pulsa "Trackear precio" para empezar.</p>
+      <h3 data-i18n="emptyStateTitle">Sin productos activos</h3>
+      <p data-i18n="emptyStateSubtitle">Visita tu tienda favorita y pulsa "Trackear precio" para empezar.</p>
     </div>
 
     <div id="loadingState" class="loading-state">
@@ -99,85 +99,85 @@
     <div class="modal-overlay"></div>
     <div class="modal-content settings-content">
       <div class="modal-header">
-        <h2>⚙️ Configuración</h2>
+        <h2 data-i18n="settingsTitle">⚙️ Configuración</h2>
         <button id="closeSettingsBtn" class="modal-close" aria-label="Cerrar">✕</button>
       </div>
       <div class="modal-body settings-body">
         <section class="settings-block">
-          <h3>Configuración básica</h3>
+          <h3 data-i18n="basicSettings">Configuración básica</h3>
           <div class="settings-group">
-            <h4>📢 Notificaciones</h4>
+            <h4 data-i18n="notificationsSection">📢 Notificaciones</h4>
             <div class="settings-item toggle-row">
-              <label for="enableNotifications">Activar notificaciones</label>
+              <label for="enableNotifications" data-i18n="enableNotifications">Activar notificaciones</label>
               <input type="checkbox" id="enableNotifications" checked>
             </div>
             <div class="settings-item">
-              <label for="notificationThreshold">Avisarme cuando baje al menos un:</label>
+              <label for="notificationThreshold" data-i18n="notifyWhenDrops">Avisarme cuando baje al menos un:</label>
               <div class="threshold-input">
                 <input type="range" id="notificationThreshold" min="1" max="50" value="5" step="1">
                 <span id="thresholdValue" class="threshold-value">5%</span>
               </div>
-              <p class="settings-help">Porcentaje mínimo de bajada respecto al precio inicial.</p>
+              <p class="settings-help" data-i18n="minPercentageTooltip">Porcentaje mínimo de bajada respecto al precio inicial.</p>
             </div>
             <div class="settings-item">
-              <label for="checkInterval">Frecuencia de comprobación</label>
+              <label for="checkInterval" data-i18n="checkFrequency">Frecuencia de comprobación</label>
               <select id="checkInterval">
-                <option value="1">Cada 1 hora</option>
-                <option value="3">Cada 3 horas</option>
-                <option value="6" selected>Cada 6 horas (recomendado)</option>
-                <option value="12">Cada 12 horas</option>
-                <option value="24">Cada 24 horas</option>
+                <option value="1" data-i18n="freq1h">Cada 1 hora</option>
+                <option value="3" data-i18n="freq3h">Cada 3 horas</option>
+                <option value="6" selected data-i18n="freq6h">Cada 6 horas (recomendado)</option>
+                <option value="12" data-i18n="freq12h">Cada 12 horas</option>
+                <option value="24" data-i18n="freq24h">Cada 24 horas</option>
               </select>
             </div>
             <div class="settings-item">
-              <button id="testNotificationBtn" class="btn btn-secondary">🔔 Probar notificación</button>
+              <button id="testNotificationBtn" class="btn btn-secondary" data-i18n="testNotification">🔔 Probar notificación</button>
             </div>
           </div>
           <div class="settings-group">
-            <h4>🧭 Comportamiento</h4>
+            <h4 data-i18n="behaviorSection">🧭 Comportamiento</h4>
             <div class="settings-item">
-              <label for="themePreference">Tema de la extensión</label>
+              <label for="themePreference" data-i18n="extensionTheme">Tema de la extensión</label>
               <select id="themePreference">
-                <option value="system">Seguir el sistema</option>
-                <option value="light">Claro</option>
-                <option value="dark">Oscuro</option>
+                <option value="system" data-i18n="themeSystem">Seguir el sistema</option>
+                <option value="light" data-i18n="themeLight">Claro</option>
+                <option value="dark" data-i18n="themeDark">Oscuro</option>
               </select>
-              <p class="settings-help">También puedes alternar rápidamente desde el botón superior derecho.</p>
+              <p class="settings-help" data-i18n="themeToggleHint">También puedes alternar rápidamente desde el botón superior derecho.</p>
             </div>
             <div class="settings-item">
-              <label for="floatingButtonBehavior">Botón flotante</label>
+              <label for="floatingButtonBehavior" data-i18n="floatingButton">Botón flotante</label>
               <select id="floatingButtonBehavior">
-                <option value="expanded">Mostrar expandido</option>
-                <option value="compact">Compacto por defecto</option>
+                <option value="expanded" data-i18n="floatingExpanded">Mostrar expandido</option>
+                <option value="compact" data-i18n="floatingCompact">Compacto por defecto</option>
               </select>
-              <p class="settings-help">Controla si el botón flotante aparece en modo compacto al cargar una página.</p>
+              <p class="settings-help" data-i18n="floatingButtonTooltip">Controla si el botón flotante aparece en modo compacto al cargar una página.</p>
             </div>
           </div>
         </section>
 
         <details class="settings-block settings-advanced" id="advancedSettings">
-          <summary>🔧 Opciones avanzadas</summary>
+          <summary data-i18n="advancedOptions">🔧 Opciones avanzadas</summary>
           <div class="settings-group">
-            <h4>🛰 Estado de conexión</h4>
+            <h4 data-i18n="connectionStatus">🛰 Estado de conexión</h4>
             <div class="connection-status-row">
               <span id="settingsConnectionStatus" class="status-badge checking">⚪ Comprobando...</span>
               <span id="settingsLastSync" class="last-update">Sincronización pendiente</span>
             </div>
           </div>
           <div class="settings-group">
-            <h4>☁️ Historial compartido</h4>
+            <h4 data-i18n="sharedHistory">☁️ Historial compartido</h4>
             <span id="firebaseStatusDetail" class="status-detail">Comprobando conexión...</span>
-            <button id="testFirebaseBtn" class="btn btn-secondary">🧪 Probar conexión Firebase</button>
+            <button id="testFirebaseBtn" class="btn btn-secondary" data-i18n="testFirebaseConnection">🧪 Probar conexión Firebase</button>
           </div>
           <div class="settings-group">
-            <h4>🚀 Recuperación</h4>
-            <p class="settings-help">Volver a intentar productos bloqueados temporalmente por demasiados intentos.</p>
-            <button id="clearRateLimitsBtn" class="btn btn-secondary">🔄 Reintentar productos bloqueados</button>
+            <h4 data-i18n="recoverySection">🚀 Recuperación</h4>
+            <p class="settings-help" data-i18n="recoveryDescription">Volver a intentar productos bloqueados temporalmente por demasiados intentos.</p>
+            <button id="clearRateLimitsBtn" class="btn btn-secondary" data-i18n="retryBlockedProducts">🔄 Reintentar productos bloqueados</button>
           </div>
         </details>
 
         <div class="settings-footer">
-          <button id="saveSettingsBtn" class="btn btn-primary">💾 Guardar configuración</button>
+          <button id="saveSettingsBtn" class="btn btn-primary" data-i18n="saveSettings">💾 Guardar configuración</button>
         </div>
       </div>
     </div>

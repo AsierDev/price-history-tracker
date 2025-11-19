@@ -2,15 +2,19 @@
  * Content script - injects the Track Price button and decides support mode per page
  */
 
-import type { ExtractedProductData } from './core/types';
-import type { ExtractedMetadata } from './utils/metadataExtractor';
-import { getAdapterForUrl, getBadgeInfo } from './adapters/registry';
-import { PricePicker } from './content-script/pricePicker';
-import { resolveSupportMode, type SupportMode } from './content-script/supportMode';
-import { logger } from './utils/logger';
-import { extractMetadata } from './utils/metadataExtractor';
+import type { ExtractedProductData } from "./core/types";
+import type { ExtractedMetadata } from "./utils/metadataExtractor";
+import { getAdapterForUrl, getBadgeInfo } from "./adapters/registry";
+import { PricePicker } from "./content-script/pricePicker";
+import {
+  resolveSupportMode,
+  type SupportMode,
+} from "./content-script/supportMode";
+import { logger } from "./utils/logger";
+import { extractMetadata } from "./utils/metadataExtractor";
+import { t, translatePage } from "./utils/i18n";
 
-type ButtonState = 'idle' | 'extracting' | 'selecting' | 'added' | 'error';
+type ButtonState = "idle" | "extracting" | "selecting" | "added" | "error";
 
 type MetadataPayload = {
   title: string;
@@ -20,31 +24,31 @@ type MetadataPayload = {
 
 type ContentScriptMessage =
   | {
-      action: 'trackProduct';
+      action: "trackProduct";
       url: string;
       productData: ExtractedProductData;
       metadata: MetadataPayload;
       supportMode: SupportMode;
     }
   | {
-      action: 'trackProductManual';
+      action: "trackProductManual";
       url: string;
       priceElement: { selector: string; text: string };
       metadata: MetadataPayload;
     }
-  | { action: 'ping' };
+  | { action: "ping" };
 
 type MessageResponse = { success: boolean; error?: string; pong?: boolean };
 
-const PRIMARY_GRADIENT = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-const SUCCESS_GRADIENT = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-const ERROR_GRADIENT = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+const PRIMARY_GRADIENT = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+const SUCCESS_GRADIENT = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+const ERROR_GRADIENT = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
 
 const pricePicker = new PricePicker();
-const BUTTON_COLLAPSE_KEY = 'phtButtonCollapsed';
-const BUTTON_LABEL_HINT_KEY = 'phtButtonLabelHintShown';
-const BUTTON_MINIMIZE_HINT_KEY = 'phtButtonMinimizeHintShown';
-const BUTTON_STYLE_ID = 'price-tracker-styles';
+const BUTTON_COLLAPSE_KEY = "phtButtonCollapsed";
+const BUTTON_LABEL_HINT_KEY = "phtButtonLabelHintShown";
+const BUTTON_MINIMIZE_HINT_KEY = "phtButtonMinimizeHintShown";
+const BUTTON_STYLE_ID = "price-tracker-styles";
 
 let trackButton: HTMLButtonElement | null = null;
 let buttonLabelContainer: HTMLSpanElement | null = null;
@@ -55,7 +59,7 @@ let buttonWrapper: HTMLDivElement | null = null;
 let collapseToggleEl: HTMLButtonElement | null = null;
 let collapsedFabEl: HTMLButtonElement | null = null;
 let buttonToastEl: HTMLDivElement | null = null;
-let currentMode: SupportMode = 'none';
+let currentMode: SupportMode = "none";
 let lastUrl = window.location.href;
 let isButtonCollapsed = false;
 let hasShownLabelHint = false;
@@ -63,31 +67,32 @@ let hasShownMinimizeHint = false;
 let labelHintTimeout: number | null = null;
 let labelHintActive = false;
 let forcedLabelActive = false;
-let currentButtonState: ButtonState = 'idle';
+let currentButtonState: ButtonState = "idle";
 let minimizeHintTimeout: number | null = null;
 
 /**
  * Entry point
  */
 async function initContentScript() {
+  translatePage();
   await loadButtonPreferences();
   evaluateSupportMode(true);
   observeSpaNavigation();
   sendPingToServiceWorker();
 
-  logger.debug('Content script initialized', {
+  logger.debug("Content script initialized", {
     url: window.location.href,
     mode: currentMode,
   });
 }
 
-if (document.readyState === 'loading') {
+if (document.readyState === "loading") {
   document.addEventListener(
-    'DOMContentLoaded',
+    "DOMContentLoaded",
     () => {
       void initContentScript();
     },
-    { once: true },
+    { once: true }
   );
 } else {
   void initContentScript();
@@ -97,7 +102,7 @@ function evaluateSupportMode(force = false) {
   const url = window.location.href;
   const nextMode = resolveSupportMode(url, document);
 
-  logger.info('Support mode evaluation', {
+  logger.info("Support mode evaluation", {
     url,
     nextMode,
     previousMode: currentMode,
@@ -110,13 +115,13 @@ function evaluateSupportMode(force = false) {
 
   currentMode = nextMode;
 
-  if (currentMode === 'none') {
+  if (currentMode === "none") {
     removeTrackButton();
     return;
   }
 
   ensureTrackButton();
-  setButtonState('idle');
+  setButtonState("idle");
   updateButtonPresentation();
 }
 
@@ -130,28 +135,28 @@ function ensureTrackButton() {
 
   injectFloatingButtonStyles();
 
-  buttonWrapper = document.createElement('div');
-  buttonWrapper.id = 'price-tracker-wrapper';
-  buttonWrapper.dataset.collapsed = 'false';
+  buttonWrapper = document.createElement("div");
+  buttonWrapper.id = "price-tracker-wrapper";
+  buttonWrapper.dataset.collapsed = "false";
 
-  trackButton = document.createElement('button');
-  trackButton.id = 'price-tracker-btn';
-  trackButton.type = 'button';
-  trackButton.dataset.labelState = 'none';
+  trackButton = document.createElement("button");
+  trackButton.id = "price-tracker-btn";
+  trackButton.type = "button";
+  trackButton.dataset.labelState = "none";
 
-  buttonIconEl = document.createElement('span');
-  buttonIconEl.className = 'pht-icon';
+  buttonIconEl = document.createElement("span");
+  buttonIconEl.className = "pht-icon";
   buttonIconEl.textContent = iconForCurrentMode();
 
-  buttonLabelContainer = document.createElement('span');
-  buttonLabelContainer.className = 'pht-label';
+  buttonLabelContainer = document.createElement("span");
+  buttonLabelContainer.className = "pht-label";
 
-  buttonLabelEl = document.createElement('span');
-  buttonLabelEl.className = 'pht-label-text';
+  buttonLabelEl = document.createElement("span");
+  buttonLabelEl.className = "pht-label-text";
   buttonLabelEl.textContent = labelForCurrentMode();
 
-  buttonBadgeEl = document.createElement('span');
-  buttonBadgeEl.className = 'pht-badge';
+  buttonBadgeEl = document.createElement("span");
+  buttonBadgeEl.className = "pht-badge";
 
   buttonLabelContainer.appendChild(buttonLabelEl);
   buttonLabelContainer.appendChild(buttonBadgeEl);
@@ -159,7 +164,7 @@ function ensureTrackButton() {
   trackButton.appendChild(buttonIconEl);
   trackButton.appendChild(buttonLabelContainer);
 
-  trackButton.addEventListener('click', () => {
+  trackButton.addEventListener("click", () => {
     if (isButtonCollapsed) {
       void setButtonCollapsedState(false);
       return;
@@ -167,30 +172,30 @@ function ensureTrackButton() {
     void handleTrackPrice();
   });
 
-  collapseToggleEl = document.createElement('button');
-  collapseToggleEl.id = 'price-tracker-hide';
-  collapseToggleEl.type = 'button';
-  collapseToggleEl.title = 'Minimizar control flotante';
-  collapseToggleEl.setAttribute('aria-label', 'Minimizar control flotante');
-  collapseToggleEl.textContent = 'Minimizar';
-  collapseToggleEl.addEventListener('click', event => {
+  collapseToggleEl = document.createElement("button");
+  collapseToggleEl.id = "price-tracker-hide";
+  collapseToggleEl.type = "button";
+  collapseToggleEl.title = t("minimizeFloatingControl");
+  collapseToggleEl.setAttribute("aria-label", t("minimizeFloatingControl"));
+  collapseToggleEl.textContent = "Minimizar";
+  collapseToggleEl.addEventListener("click", (event) => {
     event.stopPropagation();
     void setButtonCollapsedState(true);
   });
 
-  collapsedFabEl = document.createElement('button');
-  collapsedFabEl.id = 'price-tracker-collapsed';
-  collapsedFabEl.type = 'button';
-  collapsedFabEl.title = 'Trackear el precio de este producto';
-  collapsedFabEl.setAttribute('aria-label', 'Trackear el precio de este producto');
-  collapsedFabEl.textContent = '📈';
-  collapsedFabEl.addEventListener('click', () => {
+  collapsedFabEl = document.createElement("button");
+  collapsedFabEl.id = "price-tracker-collapsed";
+  collapsedFabEl.type = "button";
+  collapsedFabEl.title = t("trackProductPrice");
+  collapsedFabEl.setAttribute("aria-label", t("trackProductPrice"));
+  collapsedFabEl.textContent = "📈";
+  collapsedFabEl.addEventListener("click", () => {
     void setButtonCollapsedState(false);
   });
 
-  buttonToastEl = document.createElement('div');
-  buttonToastEl.id = 'price-tracker-toast';
-  buttonToastEl.dataset.visible = 'false';
+  buttonToastEl = document.createElement("div");
+  buttonToastEl.id = "price-tracker-toast";
+  buttonToastEl.dataset.visible = "false";
 
   buttonWrapper.appendChild(trackButton);
   buttonWrapper.appendChild(collapseToggleEl);
@@ -220,7 +225,7 @@ function removeTrackButton() {
   buttonToastEl = null;
   forcedLabelActive = false;
   labelHintActive = false;
-  currentButtonState = 'idle';
+  currentButtonState = "idle";
   if (labelHintTimeout) {
     window.clearTimeout(labelHintTimeout);
     labelHintTimeout = null;
@@ -235,9 +240,9 @@ function updateButtonPresentation() {
   if (!trackButton) return;
 
   if (buttonBadgeEl) {
-    if (currentMode === 'manual') {
-      buttonBadgeEl.textContent = 'Modo manual';
-      buttonBadgeEl.dataset.tone = 'warning';
+    if (currentMode === "manual") {
+      buttonBadgeEl.textContent = t("manualMode");
+      buttonBadgeEl.dataset.tone = "warning";
     } else {
       const badgeInfo = getBadgeInfo(window.location.href);
       buttonBadgeEl.textContent = `${badgeInfo.emoji} ${badgeInfo.text}`;
@@ -245,14 +250,14 @@ function updateButtonPresentation() {
     }
 
     const hasText = Boolean(buttonBadgeEl.textContent?.trim());
-    buttonBadgeEl.style.display = hasText ? 'inline-flex' : 'none';
+    buttonBadgeEl.style.display = hasText ? "inline-flex" : "none";
   }
 
-  if (buttonLabelEl && currentButtonState === 'idle') {
+  if (buttonLabelEl && currentButtonState === "idle") {
     buttonLabelEl.textContent = labelForCurrentMode();
   }
 
-  if (buttonIconEl && currentButtonState === 'idle') {
+  if (buttonIconEl && currentButtonState === "idle") {
     buttonIconEl.textContent = iconForCurrentMode();
   }
 
@@ -261,24 +266,24 @@ function updateButtonPresentation() {
 }
 
 function labelForCurrentMode(): string {
-  if (currentMode === 'manual') {
-    return 'Seleccionar precio';
+  if (currentMode === "manual") {
+    return t("selectPrice");
   }
-  return 'Trackear precio';
+  return t("trackPrice");
 }
 
 function iconForCurrentMode(): string {
-  if (currentMode === 'manual') {
-    return '🖱️';
+  if (currentMode === "manual") {
+    return "🖱️";
   }
-  return '📈';
+  return "📈";
 }
 
 function tooltipTextForCurrentMode(): string {
-  if (currentMode === 'manual') {
-    return 'Seleccionar el precio en la página';
+  if (currentMode === "manual") {
+    return t("selectPriceOnPage");
   }
-  return 'Trackear el precio de este producto';
+  return t("trackProductPrice");
 }
 
 function setButtonState(state: ButtonState, message?: string) {
@@ -286,13 +291,13 @@ function setButtonState(state: ButtonState, message?: string) {
 
   currentButtonState = state;
 
-  if (state === 'idle') {
+  if (state === "idle") {
     trackButton.disabled = false;
-    trackButton.style.opacity = '1';
+    trackButton.style.opacity = "1";
     trackButton.style.background = PRIMARY_GRADIENT;
     forcedLabelActive = false;
     if (!labelHintActive) {
-      setLabelState('none');
+      setLabelState("none");
     }
     buttonIconEl.textContent = iconForCurrentMode();
     buttonLabelEl.textContent = labelForCurrentMode();
@@ -301,37 +306,37 @@ function setButtonState(state: ButtonState, message?: string) {
   }
 
   forcedLabelActive = true;
-  setLabelState('state');
+  setLabelState("state");
   trackButton.disabled = true;
-  trackButton.style.opacity = '0.9';
+  trackButton.style.opacity = "0.9";
 
   switch (state) {
-    case 'extracting':
+    case "extracting":
       trackButton.style.background = PRIMARY_GRADIENT;
-      buttonIconEl.textContent = '⏳';
-      buttonLabelEl.textContent = message ?? 'Extrayendo precio...';
+      buttonIconEl.textContent = "⏳";
+      buttonLabelEl.textContent = message ?? t("extractingPrice");
       break;
-    case 'selecting':
+    case "selecting":
       trackButton.style.background = PRIMARY_GRADIENT;
-      buttonIconEl.textContent = '🖱️';
-      buttonLabelEl.textContent = message ?? 'Haz clic sobre el precio…';
+      buttonIconEl.textContent = "🖱️";
+      buttonLabelEl.textContent = message ?? t("clickOnPrice");
       break;
-    case 'added':
+    case "added":
       trackButton.style.background = SUCCESS_GRADIENT;
-      buttonIconEl.textContent = '✅';
-      buttonLabelEl.textContent = message ?? 'Producto añadido ✅';
-      window.setTimeout(() => setButtonState('idle'), 2000);
+      buttonIconEl.textContent = "✅";
+      buttonLabelEl.textContent = message ?? t("productAdded");
+      window.setTimeout(() => setButtonState("idle"), 2000);
       break;
-    case 'error':
+    case "error":
       trackButton.style.background = ERROR_GRADIENT;
-      buttonIconEl.textContent = '⚠️';
-      buttonLabelEl.textContent = message ?? 'No se pudo añadir';
-      window.setTimeout(() => setButtonState('idle'), 2500);
+      buttonIconEl.textContent = "⚠️";
+      buttonLabelEl.textContent = message ?? t("couldNotAdd");
+      window.setTimeout(() => setButtonState("idle"), 2500);
       break;
   }
 }
 
-type LabelState = 'none' | 'hint' | 'state';
+type LabelState = "none" | "hint" | "state";
 
 function setLabelState(state: LabelState) {
   if (!trackButton) return;
@@ -344,29 +349,31 @@ function maybeShowIntroLabel() {
   }
 
   labelHintActive = true;
-  setLabelState('hint');
+  setLabelState("hint");
   if (labelHintTimeout) {
     window.clearTimeout(labelHintTimeout);
   }
   labelHintTimeout = window.setTimeout(() => {
     labelHintActive = false;
     if (!forcedLabelActive) {
-      setLabelState('none');
+      setLabelState("none");
     }
   }, 3500);
 
   if (!hasShownLabelHint) {
     hasShownLabelHint = true;
-    void chrome.storage.local.set({ [BUTTON_LABEL_HINT_KEY]: true }).catch(() => {
-      // Ignore preference errors
-    });
+    void chrome.storage.local
+      .set({ [BUTTON_LABEL_HINT_KEY]: true })
+      .catch(() => {
+        // Ignore preference errors
+      });
   }
 }
 
 function updateButtonAccessibility() {
   if (!trackButton) return;
   const tooltip = tooltipTextForCurrentMode();
-  trackButton.setAttribute('aria-label', tooltip);
+  trackButton.setAttribute("aria-label", tooltip);
   trackButton.title = tooltip;
 }
 
@@ -374,21 +381,24 @@ function updateButtonAccessibility() {
  * Handle button click according to support mode
  */
 async function handleTrackPrice() {
-  if (currentMode === 'none') {
-    logger.warn('Track button clicked but mode is none');
+  if (currentMode === "none") {
+    logger.warn("Track button clicked but mode is none");
     return;
   }
 
   try {
-    if (currentMode === 'manual') {
+    if (currentMode === "manual") {
       await handleManualTracking();
       return;
     }
 
     await handleAutomaticTracking();
   } catch (error) {
-    logger.error('Failed to track product', error);
-    setButtonState('error', error instanceof Error ? error.message : 'Error desconocido');
+    logger.error("Failed to track product", error);
+    setButtonState(
+      "error",
+      error instanceof Error ? error.message : t("unknownError")
+    );
   }
 }
 
@@ -396,19 +406,19 @@ async function handleTrackPrice() {
  * Automatic extraction flow
  */
 async function handleAutomaticTracking() {
-  setButtonState('extracting', 'Extrayendo datos…');
+  setButtonState("extracting", t("extractingData"));
 
   const adapter = getAdapterForUrl(window.location.href);
 
   if (!adapter) {
-    logger.warn('No adapter resolved during automatic tracking');
-    setButtonState('error', 'Sitio no soportado');
+    logger.warn("No adapter resolved during automatic tracking");
+    setButtonState("error", t("siteNotSupported"));
     return;
   }
 
   if (adapter.requiresManualSelection) {
-    logger.info('Adapter requires manual selection; switching flow');
-    currentMode = 'manual';
+    logger.info("Adapter requires manual selection; switching flow");
+    currentMode = "manual";
     updateButtonPresentation();
     await handleManualTracking();
     return;
@@ -418,9 +428,9 @@ async function handleAutomaticTracking() {
   try {
     productData = await adapter.extractData(document.documentElement.outerHTML);
   } catch (error) {
-    if (error instanceof Error && error.message === 'AUTO_EXTRACT_FAILED') {
-      logger.warn('Auto extraction failed, falling back to manual selector');
-      currentMode = 'manual';
+    if (error instanceof Error && error.message === "AUTO_EXTRACT_FAILED") {
+      logger.warn("Auto extraction failed, falling back to manual selector");
+      currentMode = "manual";
       updateButtonPresentation();
       await handleManualTracking();
       return;
@@ -429,15 +439,17 @@ async function handleAutomaticTracking() {
   }
 
   if (!productData.available) {
-    logger.warn('Adapter reported product unavailable', { url: window.location.href });
-    setButtonState('error', productData.error ?? 'Producto no disponible');
+    logger.warn("Adapter reported product unavailable", {
+      url: window.location.href,
+    });
+    setButtonState("error", productData.error ?? t("productUnavailable"));
     return;
   }
 
   const metadata = buildMetadataPayload();
 
   const response = await sendMessageWithRetry({
-    action: 'trackProduct',
+    action: "trackProduct",
     url: window.location.href,
     productData,
     metadata,
@@ -445,9 +457,9 @@ async function handleAutomaticTracking() {
   });
 
   if (response.success) {
-    setButtonState('added', 'Producto añadido ✅');
+    setButtonState("added", t("productAdded"));
   } else {
-    setButtonState('error', response.error ?? 'No se pudo añadir');
+    setButtonState("error", response.error ?? t("couldNotAdd"));
   }
 }
 
@@ -455,22 +467,22 @@ async function handleAutomaticTracking() {
  * Manual selector flow
  */
 async function handleManualTracking(): Promise<void> {
-  setButtonState('selecting');
+  setButtonState("selecting");
 
   const result = await pricePicker.activate();
 
   if (!result || !result.success) {
-    logger.info('Manual selection cancelled');
-    setButtonState('idle');
+    logger.info("Manual selection cancelled");
+    setButtonState("idle");
     return;
   }
 
-  setButtonState('extracting', 'Procesando selección…');
+  setButtonState("extracting", t("processingSelection"));
 
   const metadata = buildMetadataPayload();
 
   const response = await sendMessageWithRetry({
-    action: 'trackProductManual',
+    action: "trackProductManual",
     url: window.location.href,
     priceElement: {
       selector: result.selector,
@@ -480,14 +492,17 @@ async function handleManualTracking(): Promise<void> {
   });
 
   if (response.success) {
-    setButtonState('added', 'Producto añadido ✅');
+    setButtonState("added", t("productAdded"));
   } else {
-    setButtonState('error', response.error ?? 'No se pudo añadir');
+    setButtonState("error", response.error ?? t("couldNotAdd"));
   }
 }
 
 function buildMetadataPayload(): MetadataPayload {
-  const metadata: ExtractedMetadata = extractMetadata(document, window.location.href);
+  const metadata: ExtractedMetadata = extractMetadata(
+    document,
+    window.location.href
+  );
   return {
     title: metadata.title,
     imageUrl: metadata.imageUrl,
@@ -498,31 +513,41 @@ function buildMetadataPayload(): MetadataPayload {
 /**
  * Message helper with retry logic to wake the service worker
  */
-async function sendMessageWithRetry(message: ContentScriptMessage, maxRetries = 3): Promise<MessageResponse> {
+async function sendMessageWithRetry(
+  message: ContentScriptMessage,
+  maxRetries = 3
+): Promise<MessageResponse> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await chrome.runtime.sendMessage(message);
       return response;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.warn(`Message attempt ${attempt} failed`, { error: errorMessage, action: message.action });
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.warn(`Message attempt ${attempt} failed`, {
+        error: errorMessage,
+        action: message.action,
+      });
 
-      if (!errorMessage.includes('Extension context invalidated') || attempt === maxRetries) {
+      if (
+        !errorMessage.includes("Extension context invalidated") ||
+        attempt === maxRetries
+      ) {
         throw error;
       }
 
       try {
-        await chrome.runtime.sendMessage({ action: 'ping' });
+        await chrome.runtime.sendMessage({ action: "ping" });
       } catch {
         // Ignore ping errors
       }
 
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
-  throw new Error('Failed to reach service worker');
+  throw new Error("Failed to reach service worker");
 }
 
 /**
@@ -546,21 +571,24 @@ function observeSpaNavigation() {
  * Allow popup to trigger manual selector
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.action === 'enablePricePicker') {
+  if (message.action === "enablePricePicker") {
     evaluateSupportMode(true);
     handleManualTracking()
       .then(() => sendResponse({ success: true }))
-      .catch(error => {
-        logger.error('Manual tracking triggered via message failed', error);
-        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+      .catch((error) => {
+        logger.error("Manual tracking triggered via message failed", error);
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : t("unknownError"),
+        });
       });
     return true;
   }
 
-  if (message.action === 'detectEcommerce') {
+  if (message.action === "detectEcommerce") {
     const mode = resolveSupportMode(window.location.href, document);
     sendResponse({
-      isEcommerce: mode !== 'none',
+      isEcommerce: mode !== "none",
       mode,
     });
     return true;
@@ -574,9 +602,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
  */
 async function sendPingToServiceWorker() {
   try {
-    await chrome.runtime.sendMessage({ action: 'ping' });
+    await chrome.runtime.sendMessage({ action: "ping" });
   } catch (error) {
-    logger.warn('Failed to send initial ping to service worker', {
+    logger.warn("Failed to send initial ping to service worker", {
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -584,7 +612,11 @@ async function sendPingToServiceWorker() {
 
 async function loadButtonPreferences(): Promise<void> {
   try {
-    const stored = await chrome.storage.local.get([BUTTON_COLLAPSE_KEY, BUTTON_LABEL_HINT_KEY, BUTTON_MINIMIZE_HINT_KEY]);
+    const stored = await chrome.storage.local.get([
+      BUTTON_COLLAPSE_KEY,
+      BUTTON_LABEL_HINT_KEY,
+      BUTTON_MINIMIZE_HINT_KEY,
+    ]);
     isButtonCollapsed = Boolean(stored[BUTTON_COLLAPSE_KEY]);
     hasShownLabelHint = Boolean(stored[BUTTON_LABEL_HINT_KEY]);
     hasShownMinimizeHint = Boolean(stored[BUTTON_MINIMIZE_HINT_KEY]);
@@ -592,7 +624,7 @@ async function loadButtonPreferences(): Promise<void> {
     isButtonCollapsed = false;
     hasShownLabelHint = false;
     hasShownMinimizeHint = false;
-    logger.warn('Unable to read button preference', {
+    logger.warn("Unable to read button preference", {
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -607,7 +639,9 @@ async function setButtonCollapsedState(collapsed: boolean): Promise<void> {
   isButtonCollapsed = collapsed;
 
   try {
-    const payload: Record<string, boolean> = { [BUTTON_COLLAPSE_KEY]: collapsed };
+    const payload: Record<string, boolean> = {
+      [BUTTON_COLLAPSE_KEY]: collapsed,
+    };
     if (collapsed && !hasShownMinimizeHint) {
       hasShownMinimizeHint = true;
       payload[BUTTON_MINIMIZE_HINT_KEY] = true;
@@ -617,7 +651,7 @@ async function setButtonCollapsedState(collapsed: boolean): Promise<void> {
     }
     await chrome.storage.local.set(payload);
   } catch (error) {
-    logger.warn('Unable to persist button preference', {
+    logger.warn("Unable to persist button preference", {
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -642,14 +676,14 @@ function showMinimizeHintToast() {
   }
 
   if (!buttonToastEl) {
-    buttonToastEl = document.createElement('div');
-    buttonToastEl.id = 'price-tracker-toast';
-    buttonToastEl.dataset.visible = 'false';
+    buttonToastEl = document.createElement("div");
+    buttonToastEl.id = "price-tracker-toast";
+    buttonToastEl.dataset.visible = "false";
     buttonWrapper.appendChild(buttonToastEl);
   }
 
-  buttonToastEl.textContent = 'Minimizado. Puedes volver a abrirlo desde el icono.';
-  buttonToastEl.dataset.visible = 'true';
+  buttonToastEl.textContent = t("minimizedCanReopen");
+  buttonToastEl.dataset.visible = "true";
   if (minimizeHintTimeout) {
     window.clearTimeout(minimizeHintTimeout);
   }
@@ -664,7 +698,7 @@ function hideMinimizeHintToast() {
     minimizeHintTimeout = null;
   }
   if (buttonToastEl) {
-    buttonToastEl.dataset.visible = 'false';
+    buttonToastEl.dataset.visible = "false";
   }
 }
 
@@ -673,7 +707,7 @@ function injectFloatingButtonStyles() {
     return;
   }
 
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.id = BUTTON_STYLE_ID;
   style.textContent = `
     #price-tracker-wrapper {

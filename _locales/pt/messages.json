@@ -1,0 +1,313 @@
+{
+  "extensionName": {
+    "message": "Rastreador de Preços",
+    "description": "Nome da extensão"
+  },
+  "extensionDescription": {
+    "message": "Rastreamento inteligente de preços",
+    "description": "Descrição da extensão"
+  },
+  "activeProducts": {
+    "message": "PRODUTOS ATIVOS"
+  },
+  "totalSavings": {
+    "message": "ECONOMIAS TOTAIS"
+  },
+  "savingsTooltip": {
+    "message": "Soma do dinheiro economizado em comparação com o preço inicial de cada produto (apenas quedas de preço são contadas)."
+  },
+  "searchPlaceholder": {
+    "message": "Pesquisar produtos..."
+  },
+  "sortBy": {
+    "message": "Ordenar por"
+  },
+  "sortDateAdded": {
+    "message": "Data adicionada (mais recente)"
+  },
+  "sortStore": {
+    "message": "Loja / domínio"
+  },
+  "sortPrice": {
+    "message": "Preço atual"
+  },
+  "sortDiscount": {
+    "message": "Desconto (%)"
+  },
+  "historyButton": {
+    "message": "Histórico"
+  },
+  "viewStoreButton": {
+    "message": "Ver loja"
+  },
+  "removeButton": {
+    "message": "Remover"
+  },
+  "addedOn": {
+    "message": "Adicionado em"
+  },
+  "settingsTitle": {
+    "message": "Configurações"
+  },
+  "basicSettings": {
+    "message": "CONFIGURAÇÕES BÁSICAS"
+  },
+  "notificationsSection": {
+    "message": "Notificações"
+  },
+  "enableNotifications": {
+    "message": "Ativar notificações"
+  },
+  "notifyWhenDrops": {
+    "message": "Notificar-me quando cair pelo menos:"
+  },
+  "minPercentageTooltip": {
+    "message": "Percentagem mínima de queda em comparação com o preço inicial."
+  },
+  "checkFrequency": {
+    "message": "Frequência de verificação"
+  },
+  "freq1h": {
+    "message": "A cada 1 hora"
+  },
+  "freq3h": {
+    "message": "A cada 3 horas"
+  },
+  "freq6h": {
+    "message": "A cada 6 horas (recomendado)"
+  },
+  "freq12h": {
+    "message": "A cada 12 horas"
+  },
+  "freq24h": {
+    "message": "A cada 24 horas"
+  },
+  "testNotification": {
+    "message": "Testar notificação"
+  },
+  "behaviorSection": {
+    "message": "Comportamento"
+  },
+  "extensionTheme": {
+    "message": "Tema da extensão"
+  },
+  "themeSystem": {
+    "message": "Seguir sistema"
+  },
+  "themeLight": {
+    "message": "Claro"
+  },
+  "themeDark": {
+    "message": "Escuro"
+  },
+  "themeToggleHint": {
+    "message": "Você também pode alternar rapidamente do botão no canto superior direito."
+  },
+  "floatingButton": {
+    "message": "Botão flutuante"
+  },
+  "floatingCompact": {
+    "message": "Compacto por padrão"
+  },
+  "floatingExpanded": {
+    "message": "Mostrar expandido"
+  },
+  "floatingButtonTooltip": {
+    "message": "Controla se o botão flutuante aparece em modo compacto ao carregar uma página."
+  },
+  "advancedOptions": {
+    "message": "Opções avançadas"
+  },
+  "connectionStatus": {
+    "message": "Status da conexão"
+  },
+  "connected": {
+    "message": "Conectado"
+  },
+  "lastSync": {
+    "message": "Última sincronização:"
+  },
+  "sharedHistory": {
+    "message": "Histórico compartilhado"
+  },
+  "connectedUID": {
+    "message": "Conectado (UID:"
+  },
+  "testFirebaseConnection": {
+    "message": "Testar conexão Firebase"
+  },
+  "recoverySection": {
+    "message": "Recuperação"
+  },
+  "recoveryDescription": {
+    "message": "Tentar novamente produtos temporariamente bloqueados devido a muitas tentativas."
+  },
+  "retryBlockedProducts": {
+    "message": "Tentar novamente produtos bloqueados"
+  },
+  "emptyStateTitle": {
+    "message": "Você não tem produtos sendo rastreados"
+  },
+  "emptyStateSubtitle": {
+    "message": "Navegue para uma loja e adicione produtos para começar"
+  },
+  "fullSupport": {
+    "message": "Suporte completo"
+  },
+  "verifiedStore": {
+    "message": "Loja verificada"
+  },
+  "manualTracking": {
+    "message": "Rastreamento manual"
+  },
+  "confirmRemoveProduct": {
+    "message": "Tem certeza de que deseja parar de rastrear este produto?"
+  },
+  "removeProductError": {
+    "message": "Não foi possível remover o produto. Tente novamente."
+  },
+  "imageUnavailable": {
+    "message": "Imagem indisponível"
+  },
+  "errorLoadingHistory": {
+    "message": "(Erro ao carregar histórico)"
+  },
+  "priceLabel": {
+    "message": "Preço"
+  },
+  "vsInitial": {
+    "message": "vs inicial:"
+  },
+  "reduceChart": {
+    "message": "Reduzir gráfico"
+  },
+  "expandChart": {
+    "message": "Expandir gráfico"
+  },
+  "checkingConnection": {
+    "message": "Verificando conexão..."
+  },
+  "disconnected": {
+    "message": "🔴 Desconectado"
+  },
+  "notSyncedYet": {
+    "message": "Ainda não sincronizado"
+  },
+  "connectionCheckError": {
+    "message": "Erro ao verificar conexão"
+  },
+  "notConnectedFirebase": {
+    "message": "❌ Não conectado. Firebase precisa de configuração."
+  },
+  "saved": {
+    "message": "✅ Salvo!"
+  },
+  "saveSettings": {
+    "message": "💾 Salvar configurações"
+  },
+  "sending": {
+    "message": "📤 Enviando..."
+  },
+  "testNotificationTitle": {
+    "message": "🎉 Notificação de Teste"
+  },
+  "notificationsWorking": {
+    "message": "As notificações estão funcionando corretamente!"
+  },
+  "sent": {
+    "message": "✅ Enviado!"
+  },
+  "testNotificationButton": {
+    "message": "🔔 Testar notificação"
+  },
+  "testing": {
+    "message": "🧪 Testando..."
+  },
+  "connectedSuccessfully": {
+    "message": "✅ Conectado com sucesso!"
+  },
+  "notConfiguredFirebase": {
+    "message": "❌ Não configurado. Verifique as variáveis de ambiente FIREBASE_*."
+  },
+  "retrying": {
+    "message": "⏳ Tentando novamente..."
+  },
+  "retried": {
+    "message": "✅ Tentado novamente!"
+  },
+  "priceDropTitle": {
+    "message": "💰 Queda de Preço!"
+  },
+  "viewProduct": {
+    "message": "Ver Produto"
+  },
+  "stopTracking": {
+    "message": "Parar Rastreamento"
+  },
+  "minimizeFloatingControl": {
+    "message": "Minimizar controle flutuante"
+  },
+  "trackProductPrice": {
+    "message": "Rastrear o preço deste produto"
+  },
+  "manualMode": {
+    "message": "Modo manual"
+  },
+  "selectPrice": {
+    "message": "Selecionar preço"
+  },
+  "trackPrice": {
+    "message": "Rastrear preço"
+  },
+  "selectPriceOnPage": {
+    "message": "Selecione o preço na página"
+  },
+  "extractingPrice": {
+    "message": "Extraindo preço..."
+  },
+  "clickOnPrice": {
+    "message": "Clique no preço…"
+  },
+  "productAdded": {
+    "message": "Produto adicionado ✅"
+  },
+  "couldNotAdd": {
+    "message": "Não foi possível adicionar"
+  },
+  "unknownError": {
+    "message": "Erro desconhecido"
+  },
+  "extractingData": {
+    "message": "Extraindo dados…"
+  },
+  "siteNotSupported": {
+    "message": "Site não suportado"
+  },
+  "productUnavailable": {
+    "message": "Produto indisponível"
+  },
+  "processingSelection": {
+    "message": "Processando seleção…"
+  },
+  "minimizedCanReopen": {
+    "message": "Minimizado. Você pode reabri-lo a partir do ícone."
+  },
+  "clickOnPriceElement": {
+    "message": "🎯 Clique no elemento de preço"
+  },
+  "pressEscToCancel": {
+    "message": "Pressione ESC para cancelar"
+  },
+  "looksLikePrice": {
+    "message": "Parece um preço"
+  },
+  "mightNotBePrice": {
+    "message": "Pode não ser um preço"
+  },
+  "doesNotLookLikePrice": {
+    "message": "❌ Isso não parece um preço"
+  },
+  "selectElementWithPrice": {
+    "message": "Selecione um elemento que contenha um preço com símbolo de moeda."
+  }
+}

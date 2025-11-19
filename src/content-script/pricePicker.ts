@@ -3,8 +3,9 @@
  * Allows user to manually select price element on unsupported websites
  */
 
-import { logger } from '../utils/logger';
-import { looksLikePrice } from '../utils/priceParser';
+import { logger } from "../utils/logger";
+import { looksLikePrice } from "../utils/priceParser";
+import { t } from "../utils/i18n";
 
 export interface PricePickerResult {
   selector: string;
@@ -17,7 +18,8 @@ export class PricePicker {
   private overlay: HTMLElement | null = null;
   private tooltip: HTMLElement | null = null;
   private highlightedElement: HTMLElement | null = null;
-  private resolveCallback: ((result: PricePickerResult | null) => void) | null = null;
+  private resolveCallback: ((result: PricePickerResult | null) => void) | null =
+    null;
 
   // Bound event handlers (for proper removal)
   private boundMouseMove: ((e: MouseEvent) => void) | null = null;
@@ -30,11 +32,11 @@ export class PricePicker {
    */
   activate(): Promise<PricePickerResult | null> {
     if (this.isActive) {
-      logger.warn('Price picker already active');
+      logger.warn("Price picker already active");
       return Promise.resolve(null);
     }
 
-    logger.info('Activating price picker mode');
+    logger.info("Activating price picker mode");
     this.isActive = true;
 
     return new Promise((resolve) => {
@@ -50,7 +52,7 @@ export class PricePicker {
   deactivate(result: PricePickerResult | null = null) {
     if (!this.isActive) return;
 
-    logger.info('Deactivating price picker mode', { hadResult: !!result });
+    logger.info("Deactivating price picker mode", { hadResult: !!result });
     this.isActive = false;
 
     this.removeUI();
@@ -67,8 +69,8 @@ export class PricePicker {
    */
   private injectUI() {
     // Create semi-transparent overlay
-    this.overlay = document.createElement('div');
-    this.overlay.id = 'price-picker-overlay';
+    this.overlay = document.createElement("div");
+    this.overlay.id = "price-picker-overlay";
     this.overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -82,7 +84,7 @@ export class PricePicker {
     `;
 
     // Create instruction banner
-    const banner = document.createElement('div');
+    const banner = document.createElement("div");
     banner.style.cssText = `
       position: fixed;
       top: 20px;
@@ -101,14 +103,16 @@ export class PricePicker {
       pointer-events: none;
     `;
     banner.innerHTML = `
-      🎯 Click on the price element<br>
-      <span style="font-size: 12px; font-weight: 400; opacity: 0.9;">Press ESC to cancel</span>
+      ${t("clickOnPriceElement")}<br>
+      <span style="font-size: 12px; font-weight: 400; opacity: 0.9;">${t(
+        "pressEscToCancel"
+      )}</span>
     `;
     this.overlay.appendChild(banner);
 
     // Create tooltip
-    this.tooltip = document.createElement('div');
-    this.tooltip.id = 'price-picker-tooltip';
+    this.tooltip = document.createElement("div");
+    this.tooltip.id = "price-picker-tooltip";
     this.tooltip.style.cssText = `
       position: absolute;
       background: white;
@@ -128,9 +132,9 @@ export class PricePicker {
     this.overlay.appendChild(this.tooltip);
 
     document.body.appendChild(this.overlay);
-    document.body.style.cursor = 'crosshair';
+    document.body.style.cursor = "crosshair";
 
-    logger.debug('Price picker UI injected');
+    logger.debug("Price picker UI injected");
   }
 
   /**
@@ -147,9 +151,9 @@ export class PricePicker {
     }
 
     this.removeHighlight();
-    document.body.style.cursor = '';
+    document.body.style.cursor = "";
 
-    logger.debug('Price picker UI removed');
+    logger.debug("Price picker UI removed");
   }
 
   /**
@@ -160,9 +164,9 @@ export class PricePicker {
     this.boundClick = this.handleClick.bind(this);
     this.boundKeyDown = this.handleKeyDown.bind(this);
 
-    document.addEventListener('mousemove', this.boundMouseMove, true);
-    document.addEventListener('click', this.boundClick, true);
-    document.addEventListener('keydown', this.boundKeyDown, true);
+    document.addEventListener("mousemove", this.boundMouseMove, true);
+    document.addEventListener("click", this.boundClick, true);
+    document.addEventListener("keydown", this.boundKeyDown, true);
   }
 
   /**
@@ -170,17 +174,17 @@ export class PricePicker {
    */
   private removeEventListeners() {
     if (this.boundMouseMove) {
-      document.removeEventListener('mousemove', this.boundMouseMove, true);
+      document.removeEventListener("mousemove", this.boundMouseMove, true);
       this.boundMouseMove = null;
     }
 
     if (this.boundClick) {
-      document.removeEventListener('click', this.boundClick, true);
+      document.removeEventListener("click", this.boundClick, true);
       this.boundClick = null;
     }
 
     if (this.boundKeyDown) {
-      document.removeEventListener('keydown', this.boundKeyDown, true);
+      document.removeEventListener("keydown", this.boundKeyDown, true);
       this.boundKeyDown = null;
     }
   }
@@ -198,8 +202,8 @@ export class PricePicker {
         el !== this.overlay &&
         el !== this.tooltip &&
         !this.overlay?.contains(el) &&
-        el.tagName !== 'HTML' &&
-        el.tagName !== 'BODY'
+        el.tagName !== "HTML" &&
+        el.tagName !== "BODY"
     ) as HTMLElement | undefined;
 
     if (!targetElement || targetElement === this.highlightedElement) {
@@ -229,12 +233,12 @@ export class PricePicker {
         el !== this.overlay &&
         el !== this.tooltip &&
         !this.overlay?.contains(el) &&
-        el.tagName !== 'HTML' &&
-        el.tagName !== 'BODY'
+        el.tagName !== "HTML" &&
+        el.tagName !== "BODY"
     ) as HTMLElement | undefined;
 
     if (!targetElement) {
-      logger.warn('No valid element clicked');
+      logger.warn("No valid element clicked");
       return;
     }
 
@@ -247,9 +251,9 @@ export class PricePicker {
   private handleKeyDown(e: KeyboardEvent) {
     if (!this.isActive) return;
 
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       e.preventDefault();
-      logger.info('Price picker cancelled by user');
+      logger.info("Price picker cancelled by user");
       this.deactivate(null);
     }
   }
@@ -263,13 +267,17 @@ export class PricePicker {
 
     // Add highlight class
     this.highlightedElement = element;
-    element.classList.add('price-picker-highlight');
+    element.classList.add("price-picker-highlight");
 
     // Apply highlight styles
-    element.style.setProperty('outline', '3px solid #667eea', 'important');
-    element.style.setProperty('outline-offset', '2px', 'important');
-    element.style.setProperty('background-color', 'rgba(102, 126, 234, 0.1)', 'important');
-    element.style.setProperty('transition', 'all 0.2s ease', 'important');
+    element.style.setProperty("outline", "3px solid #667eea", "important");
+    element.style.setProperty("outline-offset", "2px", "important");
+    element.style.setProperty(
+      "background-color",
+      "rgba(102, 126, 234, 0.1)",
+      "important"
+    );
+    element.style.setProperty("transition", "all 0.2s ease", "important");
   }
 
   /**
@@ -277,11 +285,11 @@ export class PricePicker {
    */
   private removeHighlight() {
     if (this.highlightedElement) {
-      this.highlightedElement.classList.remove('price-picker-highlight');
-      this.highlightedElement.style.removeProperty('outline');
-      this.highlightedElement.style.removeProperty('outline-offset');
-      this.highlightedElement.style.removeProperty('background-color');
-      this.highlightedElement.style.removeProperty('transition');
+      this.highlightedElement.classList.remove("price-picker-highlight");
+      this.highlightedElement.style.removeProperty("outline");
+      this.highlightedElement.style.removeProperty("outline-offset");
+      this.highlightedElement.style.removeProperty("background-color");
+      this.highlightedElement.style.removeProperty("transition");
       this.highlightedElement = null;
     }
   }
@@ -292,21 +300,23 @@ export class PricePicker {
   private updateTooltip(element: HTMLElement, x: number, y: number) {
     if (!this.tooltip) return;
 
-    const text = element.textContent?.trim() || '';
-    const previewText = text.length > 50 ? text.substring(0, 50) + '...' : text;
+    const text = element.textContent?.trim() || "";
+    const previewText = text.length > 50 ? text.substring(0, 50) + "..." : text;
 
     // Check if text looks like a price
     const isPricelike = looksLikePrice(text);
-    const statusIcon = isPricelike ? '✅' : '⚠️';
-    const statusText = isPricelike ? 'Looks like a price' : 'Might not be a price';
+    const statusIcon = isPricelike ? "✅" : "⚠️";
+    const statusText = isPricelike ? t("looksLikePrice") : t("mightNotBePrice");
 
     this.tooltip.innerHTML = `
       <div style="margin-bottom: 4px; font-weight: 600; color: ${
-        isPricelike ? '#10b981' : '#f59e0b'
+        isPricelike ? "#10b981" : "#f59e0b"
       };">
         ${statusIcon} ${statusText}
       </div>
-      <div style="color: #666; font-size: 12px;">${previewText || '(empty)'}</div>
+      <div style="color: #666; font-size: 12px;">${
+        previewText || "(empty)"
+      }</div>
     `;
 
     // Position tooltip near cursor
@@ -329,33 +339,33 @@ export class PricePicker {
 
     this.tooltip.style.left = `${left}px`;
     this.tooltip.style.top = `${top}px`;
-    this.tooltip.style.display = 'block';
+    this.tooltip.style.display = "block";
   }
 
   /**
    * Select element and generate CSS selector
    */
   private selectElement(element: HTMLElement) {
-    const text = element.textContent?.trim() || '';
+    const text = element.textContent?.trim() || "";
 
     // Validate that text looks like a price
     if (!looksLikePrice(text)) {
-      logger.warn('Selected element does not look like a price', { text });
+      logger.warn("Selected element does not look like a price", { text });
 
       // Show error message
       if (this.tooltip) {
         this.tooltip.innerHTML = `
           <div style="color: #ef4444; font-weight: 600; margin-bottom: 4px;">
-            ❌ This doesn't look like a price
+            ${t("doesNotLookLikePrice")}
           </div>
           <div style="color: #666; font-size: 12px;">
-            Please select an element that contains a price with currency symbol.
+            ${t("selectElementWithPrice")}
           </div>
         `;
 
         setTimeout(() => {
           if (this.tooltip) {
-            this.tooltip.style.display = 'none';
+            this.tooltip.style.display = "none";
           }
         }, 2000);
       }
@@ -370,12 +380,12 @@ export class PricePicker {
     const selector = this.generateCssSelector(element);
 
     if (!selector) {
-      logger.error('Failed to generate CSS selector for element');
+      logger.error("Failed to generate CSS selector for element");
       this.deactivate(null);
       return;
     }
 
-    logger.info('Element selected successfully', {
+    logger.info("Element selected successfully", {
       selector,
       text: text.substring(0, 50),
     });
@@ -403,9 +413,9 @@ export class PricePicker {
       }
 
       // Priority 2: Price-related classes (excluding picker helpers)
-      const priceClasses = ['price', 'cost', 'amount', 'value', 'pricing'];
+      const priceClasses = ["price", "cost", "amount", "value", "pricing"];
       const classList = Array.from(element.classList).filter(
-        className => !className.startsWith('price-picker')
+        (className) => !className.startsWith("price-picker")
       );
 
       for (const priceClass of priceClasses) {
@@ -422,8 +432,8 @@ export class PricePicker {
       // Priority 3: Combination of classes
       if (classList.length > 0) {
         const classSelector = classList
-          .map(className => `.${CSS.escape(className)}`)
-          .join('');
+          .map((className) => `.${CSS.escape(className)}`)
+          .join("");
         if (this.validateSelector(classSelector, element)) {
           return classSelector;
         }
@@ -435,10 +445,10 @@ export class PricePicker {
         return path;
       }
 
-      logger.warn('Could not generate unique selector', { element });
+      logger.warn("Could not generate unique selector", { element });
       return null;
     } catch (error) {
-      logger.error('Error generating CSS selector', { error });
+      logger.error("Error generating CSS selector", { error });
       return null;
     }
   }
@@ -451,12 +461,12 @@ export class PricePicker {
     let current: HTMLElement | null = element;
     let depth = 0;
 
-    while (current && current.tagName !== 'BODY' && depth < maxDepth) {
+    while (current && current.tagName !== "BODY" && depth < maxDepth) {
       let segment = current.tagName.toLowerCase();
 
       if (current.parentElement) {
         const siblings = Array.from(current.parentElement.children).filter(
-          sibling => sibling.tagName === current!.tagName
+          (sibling) => sibling.tagName === current!.tagName
         );
 
         if (siblings.length > 1) {
@@ -470,7 +480,7 @@ export class PricePicker {
       depth++;
     }
 
-    return segments.join(' > ');
+    return segments.join(" > ");
   }
 
   /**
@@ -481,7 +491,7 @@ export class PricePicker {
       const matches = document.querySelectorAll(selector);
       return matches.length === 1 && matches[0] === element;
     } catch (error) {
-      logger.warn('Invalid selector', { selector, error });
+      logger.warn("Invalid selector", { selector, error });
       return false;
     }
   }
