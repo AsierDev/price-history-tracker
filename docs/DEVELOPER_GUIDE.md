@@ -10,7 +10,7 @@ This document explains the internal architecture, local development workflow, te
 
 Adapters implement `PriceAdapter` and are resolved in three tiers:
 
-1. **Specific adapters** (Amazon, eBay, AliExpress, MediaMarkt, PC Componentes) – full auto-extraction.
+1. **Specific adapters** (Amazon, eBay, AliExpress, MediaMarkt, PC Componentes, El Corte Inglés) – full auto-extraction extending `BaseAdapter`.
 2. **Whitelist adapters** (`EnhancedGenericAdapter`) – auto extraction for 600+ curated domains.
 3. **Manual fallback** (`GenericAdapter`) – requires a CSS selector provided by the price picker.
 
@@ -105,7 +105,7 @@ src/
 4. Extend manifest permissions only if the adapter needs additional host permissions.
 5. Add tests under `tests/adapters/`.
 
-See [`docs/README-ADAPTERS.md`](README-ADAPTERS.md) for a full template and testing checklist.
+See [`docs/ADAPTERS_GUIDE.md`](ADAPTERS_GUIDE.md) for a full template and testing checklist.
 
 ---
 

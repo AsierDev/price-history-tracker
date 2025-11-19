@@ -37,6 +37,15 @@ Repeat with any `https://www.ebay.com/itm/<id>` URL; ensure the badge reads `eba
 ### AliExpress
 Repeat with any `https://www.aliexpress.com/item/<id>.html`; expect `aliexpress` badge.
 
+### PC Componentes
+Repeat with any `https://www.pccomponentes.com/` product URL; expect `pccomponentes` badge.
+
+### MediaMarkt
+Repeat with any `https://www.mediamarkt.es/` product URL; expect `mediamarkt` badge.
+
+### El Corte Inglés
+Repeat with any `https://www.elcorteingles.es/` product URL; expect `elcorteingles` badge.
+
 ### Manual fallback (Generic)
 1. Visit an unsupported site (e.g., Etsy product).
 2. Ensure the button text indicates manual tracking (picker icon 📍).

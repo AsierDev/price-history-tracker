@@ -28,7 +28,7 @@ After rebuilding, click the reload ↻ icon in `chrome://extensions` to refresh 
 
 ### 3.1 Supported sites (Tier 1/2)
 
-1. Browse to a product on Amazon/eBay/AliExpress (or any whitelist site).
+1. Browse to a product on Amazon, eBay, AliExpress, PC Componentes, MediaMarkt, El Corte Inglés (or any whitelist site).
 2. Wait for the floating “💰 Track Price” button.
 3. Click it; once the toast reads “Product added ✅”, open the popup to confirm the card appears.
 

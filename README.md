@@ -1,6 +1,6 @@
 # 💰 Price History Tracker
 
-Chrome extension that tracks price history across Amazon, eBay, AliExpress, MediaMarkt, PC Componentes, and hundreds of additional stores using a tiered adapter system plus a universal manual price picker.
+Chrome extension that tracks price history across Amazon, eBay, AliExpress, MediaMarkt, PC Componentes, El Corte Inglés, and hundreds of additional stores using a tiered adapter system plus a universal manual price picker.
 
 [![CI](https://github.com/your-username/price-history-tracker/workflows/CI/badge.svg)](https://github.com/AsierDev/price-history-tracker/actions/)  
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -26,7 +26,7 @@ npm run build          # build MV3 bundles
 ## ✨ Features
 
 - **Tiered adapters**
-  - Tier 1: Dedicated adapters (Amazon, eBay, AliExpress, PC Componentes, MediaMarkt)
+  - Tier 1: Dedicated adapters (Amazon, eBay, AliExpress, PC Componentes, MediaMarkt, El Corte Inglés)
   - Tier 2: Enhanced Generic Adapter with whitelist (600+ stores) and cascading extraction (JSON-LD → OG/Twitter → platform selectors → heuristics)
   - Tier 3: Manual Generic Adapter + price picker fallback for any site
 - **Manual tracking built for MV3** – `createDocument` (linkedom) replaces `DOMParser`, so the service worker can parse selected HTML safely.
@@ -42,6 +42,8 @@ npm run build          # build MV3 bundles
 ## 🧱 Architecture
 
 ### Adapter API
+
+All specific adapters extend `BaseAdapter` which provides a template method pattern for data extraction:
 
 ```ts
 interface PriceAdapter {
@@ -106,9 +108,9 @@ Docs: `docs/DEVELOPER_GUIDE.md`, `docs/ADAPTERS_GUIDE.md`, `docs/TESTING_GUIDE.m
 | Command                                                                                    | Description                                                               |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | `npm run lint`                                                                             | ESLint on `src/` + `tests/` with autofix.                                 |
-| `npm test`                                                                                 | Vitest suite (unit + integration).                                        |
+| `npm test`                                                                                 | Vitest suite (unit + integration, including priceChecker tests).          |
 | `npm run test:coverage`                                                                    | Coverage report + enforcement (≥60% lines/branches/functions/statements). |
-| `PRICECHECKER_PERF=true npx vitest run tests/performance/priceChecker.performance.test.ts` | Sequential performance benchmark (~1 s/product).                          |
+| `PRICECHECKER_PERF=true npx vitest run tests/performance/priceChecker.performance.test.ts` | Sequential performance benchmark (~1 s/product).                          |
 | `npm run ci`                                                                               | Lint → `tsc --noEmit` → tests → build (CI parity).                        |
 
 Chrome APIs are mocked in `src/test/setup.ts`. Coverage artifacts live in `coverage/`.

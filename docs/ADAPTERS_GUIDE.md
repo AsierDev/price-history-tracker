@@ -6,26 +6,26 @@ Use this guide to add support for a new e-commerce platform.
 
 Every adapter must:
 
-- Implement the `PriceAdapter` interface.
+- Extend the `BaseAdapter` class and implement its abstract methods.
 - Parse HTML via `createDocument` (linkedom) – never `DOMParser`.
 - Extract product metadata (title, price, currency, optional image) and return structured errors.
 - Generate affiliate URLs when applicable (values injected via `src/config/env.ts`).
 - Register itself in `src/adapters/registry.ts` so the tier system can discover it.
 
-Existing adapters (Amazon, eBay, AliExpress, PC Componentes, MediaMarkt) are good reference points. Stub-only adapters (Awin, Belboon, TradeTracker) now extend `StubAdapter` and can be upgraded when real integrations are ready.
+Existing adapters (Amazon, eBay, AliExpress, PC Componentes, MediaMarkt, El Corte Inglés) extend `BaseAdapter` and are good reference points. Stub-only adapters (Awin, Belboon, TradeTracker) now extend `StubAdapter` and can be upgraded when real integrations are ready.
 
 ## 1. Create the adapter
 
 `src/adapters/implementations/<platform>.adapter.ts`
 
 ```ts
-import type { PriceAdapter } from '../types';
+import { BaseAdapter } from '../base/BaseAdapter';
 import type { ExtractedProductData } from '../../core/types';
 import { logger } from '../../utils/logger';
 import { createDocument } from '../../utils/htmlParser';
 import { parsePrice, detectCurrency } from '../../utils/priceUtils';
 
-export class YourPlatformAdapter implements PriceAdapter {
+export class YourPlatformAdapter extends BaseAdapter {
   name = 'yourplatform';
   affiliateNetworkId = 'your-network';
   enabled = true;
@@ -35,47 +35,7 @@ export class YourPlatformAdapter implements PriceAdapter {
     return this.urlPatterns.some(pattern => pattern.test(url));
   }
 
-  async extractData(html: string): Promise<ExtractedProductData> {
-    try {
-      const doc = createDocument(html);
-      const title = this.extractTitle(doc);
-      const priceCandidate = this.extractPrice(doc);
-
-      if (!title || !priceCandidate) {
-        return {
-          title: title ?? 'Product',
-          price: 0,
-          currency: 'EUR',
-          available: false,
-          error: 'Title or price not found',
-        };
-      }
-
-      return {
-        title,
-        price: priceCandidate.price,
-        currency: priceCandidate.currency,
-        imageUrl: this.extractImage(doc),
-        available: true,
-      };
-    } catch (error) {
-      logger.error('YourPlatform extraction failed', error);
-      return {
-        title: 'Product',
-        price: 0,
-        currency: 'EUR',
-        available: false,
-        error: error instanceof Error ? error.message : 'Extraction failed',
-      };
-    }
-  }
-
-  generateAffiliateUrl(url: string): string {
-    // Example: append query param using values from ENV (see src/config/env.ts)
-    return url;
-  }
-
-  private extractTitle(doc: Document): string | null {
+  protected extractTitle(doc: Document): string | null {
     const selectors = ['h1.product-title', '.product-name', '[data-testid="product-title"]'];
     for (const selector of selectors) {
       const text = doc.querySelector(selector)?.textContent?.trim();
@@ -84,27 +44,44 @@ export class YourPlatformAdapter implements PriceAdapter {
     return doc.title?.trim() ?? null;
   }
 
-  private extractPrice(doc: Document): { price: number; currency: string } | null {
+  protected extractPrice(doc: Document): number {
     const selectors = ['.product-price', '[data-price]', '.price-value'];
     for (const selector of selectors) {
       const text = doc.querySelector(selector)?.textContent?.trim();
       if (!text) continue;
       const price = parsePrice(text);
-      if (price > 0) {
-        return { price, currency: detectCurrency(text) ?? 'EUR' };
-      }
+      if (price > 0) return price;
     }
-    return null;
+    return 0;
   }
 
-  private extractImage(doc: Document): string | undefined {
+  protected extractCurrency(doc: Document): string {
+    const selectors = ['.product-price', '[data-price]', '.price-value'];
+    for (const selector of selectors) {
+      const text = doc.querySelector(selector)?.textContent?.trim();
+      if (text) {
+        const currency = detectCurrency(text);
+        if (currency) return currency;
+      }
+    }
+    return 'EUR';
+  }
+
+  protected extractImage(doc: Document): string | undefined {
     const og = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
     if (og) return og;
     const img = doc.querySelector('.product-image img, img[itemprop="image"]') as HTMLImageElement | null;
     return img?.src;
   }
+
+  generateAffiliateUrl(url: string): string {
+    // Example: append query param using values from ENV (see src/config/env.ts)
+    return url;
+  }
 }
 ```
+
+**Note**: `BaseAdapter` provides the `extractData` template method that calls your `extractTitle`, `extractPrice`, `extractCurrency`, and optionally `extractImage`. You just need to implement these abstract/protected methods.
 
 ## 2. Register in the adapter registry
 
