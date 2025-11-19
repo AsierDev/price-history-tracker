@@ -16,7 +16,7 @@ export class NotificationManager {
 
       await chrome.notifications.create(notificationId, {
         type: "basic",
-        iconUrl: chrome.runtime.getURL("popup/icons/icon128.svg"),
+        iconUrl: chrome.runtime.getURL("popup/icons/icon-128.png"),
         title: t("priceDropTitle"),
         message: `${data.title}\n${data.oldPrice}€ → ${
           data.newPrice

@@ -1091,7 +1091,7 @@ async function testNotification() {
 
     await chrome.notifications.create("test-notification", {
       type: "basic",
-      iconUrl: chrome.runtime.getURL("popup/icons/icon128.svg"),
+      iconUrl: chrome.runtime.getURL("popup/icons/icon-128.png"),
       title: t("testNotificationTitle"),
       message: t("notificationsWorking"),
       priority: 2,
@@ -1103,7 +1103,10 @@ async function testNotification() {
       testNotificationBtn.disabled = false;
     }, 2000);
   } catch (error) {
-    logger.error('Error testing notification', { error, action: 'testNotification' });
+    logger.error('Error testing notification', error, { 
+      action: 'testNotification',
+      errorType: error instanceof Error ? error.constructor.name : typeof error
+    });
     testNotificationBtn.textContent = "❌ " + t("error");
     setTimeout(() => {
       testNotificationBtn.textContent = t("testNotificationButton");
