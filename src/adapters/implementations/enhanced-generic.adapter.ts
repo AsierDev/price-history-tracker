@@ -3,7 +3,9 @@
  * Implements cascading extraction with 70-80% success rate
  */
 
-import type { PriceAdapter } from '../types';
+
+
+import { BaseAdapter } from '../base/BaseAdapter';
 import type { ExtractedProductData } from '../../core/types';
 import type { SupportedSite } from '../../config/supportedSites';
 import { logger } from '../../utils/logger';
@@ -19,25 +21,55 @@ type PriceCandidate = {
   score: number;
 };
 
-export class EnhancedGenericAdapter implements PriceAdapter {
+export class EnhancedGenericAdapter extends BaseAdapter {
   name = 'enhanced-generic';
   affiliateNetworkId = 'none';
   enabled = true;
   urlPatterns: RegExp[] = [/.*/]; // Matches everything (used for whitelist sites)
   requiresManualSelection = false; // Auto-detection enabled
 
-  constructor(private siteInfo?: SupportedSite) {}
+  constructor(private siteInfo?: SupportedSite) {
+    super();
+  }
 
   /**
-   * Enhanced adapter can handle any URL (used for whitelist sites)
+   * Implement abstract method from BaseAdapter
+   * In this adapter, we usually extract everything in extractData,
+   * but this provides a fallback for individual field extraction.
    */
-  canHandle(_url: string): boolean {
-    return true;
+  protected extractTitle(doc: Document): string | null {
+    return extractTitle(doc);
+  }
+
+  /**
+   * Implement abstract method from BaseAdapter
+   * This adapter uses a cascading approach in extractData, so this is a simplified fallback
+   * or used if BaseAdapter's extractData were called directly (which we override).
+   */
+  protected extractPrice(
+    doc: Document,
+    customSelector?: string
+  ): { price: number; currency: string } | null {
+    // If we have a custom selector, try that first
+    if (customSelector) {
+      const element = doc.querySelector(customSelector);
+      if (element?.textContent) {
+        const price = parsePrice(element.textContent);
+        if (price > 0) {
+          return {
+            price,
+            currency: detectCurrency(element.textContent) || 'EUR'
+          };
+        }
+      }
+    }
+    return null;
   }
 
   /**
    * Extract product data using cascading auto-detection
    * Tries multiple methods in order of reliability
+   * Overrides BaseAdapter.extractData because of the unique cascading flow
    */
   async extractData(html: string, customSelector?: string): Promise<ExtractedProductData> {
     try {
@@ -524,13 +556,6 @@ export class EnhancedGenericAdapter implements PriceAdapter {
     );
   }
 
-  /**
-   * Enhanced adapter doesn't support affiliate URLs
-   */
-  generateAffiliateUrl(url: string): string {
-    return url;
-  }
-
   private flattenJsonLdPayload(payload: unknown): JsonObject[] {
     if (!payload) return [];
 
@@ -715,3 +740,5 @@ export class EnhancedGenericAdapter implements PriceAdapter {
 export function createEnhancedGenericAdapter(siteInfo?: SupportedSite): EnhancedGenericAdapter {
   return new EnhancedGenericAdapter(siteInfo);
 }
+
+

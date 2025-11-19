@@ -3,14 +3,12 @@
  * Fallback adapter for any website not covered by specific adapters
  */
 
-import type { PriceAdapter } from '../types';
-import type { ExtractedProductData } from '../../core/types';
+import { BaseAdapter } from '../base/BaseAdapter';
 import { logger } from '../../utils/logger';
 import { parseGenericPrice } from '../../utils/priceParser';
 import { extractTitle, extractImage } from '../../utils/metadataExtractor';
-import { createDocument } from '../../utils/htmlParser';
 
-export class GenericAdapter implements PriceAdapter {
+export class GenericAdapter extends BaseAdapter {
   name = 'generic';
   affiliateNetworkId = 'none';
   enabled = true;
@@ -18,103 +16,66 @@ export class GenericAdapter implements PriceAdapter {
   requiresManualSelection = true; // User must select price element
 
   /**
-   * Generic adapter can handle any URL (it's the fallback)
+   * Extract product title using generic extractor
    */
-  canHandle(_url: string): boolean {
-    // Always return true - this is the universal fallback
-    return true;
+  protected extractTitle(doc: Document): string | null {
+    return extractTitle(doc);
   }
 
   /**
-   * Extract product data using custom selector
-   * Requires customSelector parameter since user must manually select price element
+   * Extract price using custom selector
+   * Throws error if selector is missing (handled by BaseAdapter)
    */
-  async extractData(html: string, customSelector?: string): Promise<ExtractedProductData> {
-    try {
-      // If no custom selector provided, user needs to select manually
-      if (!customSelector) {
-        logger.warn('Generic adapter requires manual price selection');
-        return {
-          title: '',
-          price: 0,
-          currency: 'USD',
-          available: false,
-          error: 'Manual selection required. Please use the price picker to select the price element.',
-        };
-      }
-
-      // Parse HTML in service worker safe way
-      const doc = createDocument(html);
-
-      // Extract price using custom selector
-      const priceElement = doc.querySelector(customSelector);
-      if (!priceElement) {
-        logger.warn('Custom selector did not match any element', { selector: customSelector });
-        return {
-          title: '',
-          price: 0,
-          currency: 'USD',
-          available: false,
-          error: 'Price element not found. The website structure may have changed. Please re-select the price.',
-        };
-      }
-
-      // Parse price from element text
-      const priceText = priceElement.textContent || '';
-      const parsedPrice = parseGenericPrice(priceText);
-
-      if (!parsedPrice) {
-        logger.warn('Could not parse price from selected element', {
-          selector: customSelector,
-          text: priceText.substring(0, 100),
-        });
-        return {
-          title: '',
-          price: 0,
-          currency: 'USD',
-          available: false,
-          error: 'Could not parse price. Please ensure you selected the correct price element.',
-        };
-      }
-
-      // Extract title from page using smart extractor
-      const title = extractTitle(doc);
-
-      // Try to extract image (optional, best effort) - pass price element for context
-      const imageUrl = extractImage(doc, priceElement as HTMLElement);
-
-      logger.info('Generic adapter extracted product data', {
-        title,
-        price: parsedPrice.price,
-        currency: parsedPrice.currency,
-        hasImage: !!imageUrl,
-      });
-
-      return {
-        title,
-        price: parsedPrice.price,
-        currency: parsedPrice.currency,
-        imageUrl,
-        available: true,
-      };
-    } catch (error) {
-      logger.error('Generic adapter extraction failed', { error, selector: customSelector });
-      return {
-        title: '',
-        price: 0,
-        currency: 'USD',
-        available: false,
-        error: 'Failed to extract product data. Please try again.',
-      };
+  protected extractPrice(
+    doc: Document,
+    customSelector?: string
+  ): { price: number; currency: string } | null {
+    // If no custom selector provided, user needs to select manually
+    if (!customSelector) {
+      logger.warn('Generic adapter requires manual price selection');
+      throw new Error(
+        'Manual selection required. Please use the price picker to select the price element.'
+      );
     }
+
+    // Extract price using custom selector
+    const priceElement = doc.querySelector(customSelector);
+    if (!priceElement) {
+      logger.warn('Custom selector did not match any element', { selector: customSelector });
+      throw new Error(
+        'Price element not found. The website structure may have changed. Please re-select the price.'
+      );
+    }
+
+    // Parse price from element text
+    const priceText = priceElement.textContent || '';
+    const parsedPrice = parseGenericPrice(priceText);
+
+    if (!parsedPrice) {
+      logger.warn('Could not parse price from selected element', {
+        selector: customSelector,
+        text: priceText.substring(0, 100),
+      });
+      throw new Error(
+        'Could not parse price. Please ensure you selected the correct price element.'
+      );
+    }
+
+    return parsedPrice;
   }
 
   /**
-   * Generic adapter doesn't support affiliate URLs
+   * Extract image using generic extractor
+   * Overrides BaseAdapter to pass price element context if possible
+   * Note: BaseAdapter's extractImage signature doesn't accept context element easily
+   * without changing the interface. We'll use the document-level extractor.
    */
-  generateAffiliateUrl(url: string): string {
-    // No affiliate program for generic websites
-    return url;
+  protected extractImage(doc: Document): string | undefined {
+    // In the original, we passed priceElement to extractImage.
+    // Here we don't have easy access to priceElement unless we re-query it.
+    // Given extractImage is best-effort, using doc is acceptable, 
+    // or we can re-query if we really want to be precise.
+    return extractImage(doc);
   }
 }
 
