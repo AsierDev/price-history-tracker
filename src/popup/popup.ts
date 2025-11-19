@@ -2,9 +2,10 @@
  * Popup UI logic
  */
 
-import type { TrackedProduct, PriceDataPoint } from "../core/types";
-import { StorageManager } from "../core/storage";
+import type { TrackedProduct, PriceDataPoint } from '../core/types';
+import { StorageManager } from '../core/storage';
 import { formatTimestamp } from "../utils/dateUtils";
+import { logger } from '../utils/logger';
 import { Chart, registerables } from "chart.js";
 import { getProductHistory, getProductImageUrl } from "../backend/backend";
 import { t, translatePage } from "../utils/i18n";
@@ -122,7 +123,7 @@ async function loadProducts() {
     applyFilters();
     updateStats();
   } catch (error) {
-    console.error("Failed to load products:", error);
+    logger.error('Failed to load products', { error, action: 'loadProducts' });
   } finally {
     showLoading(false);
   }
@@ -274,7 +275,7 @@ async function handleViewProduct(product: TrackedProduct) {
       productId: product.id,
     });
   } catch (error) {
-    console.error("Failed to open product:", error);
+    logger.error('Failed to open product', { error, productId: product.id, action: 'openProduct' });
   }
 }
 
@@ -288,7 +289,7 @@ async function handleRemoveProduct(productId: string) {
     await StorageManager.removeProduct(productId);
     await loadProducts();
   } catch (error) {
-    console.error("Failed to remove product:", error);
+    logger.error('Failed to remove product', { error, productId, action: 'removeProduct' });
     alert(t("removeProductError"));
   }
 }
@@ -379,7 +380,7 @@ async function handleRefresh() {
       refreshBtn.style.opacity = "1";
     }, 2000);
   } catch (error) {
-    console.error("Failed to refresh:", error);
+    logger.error('Failed to refresh products', { error, action: 'refresh' });
     refreshBtn.disabled = false;
     refreshBtn.style.opacity = "1";
   }
@@ -543,7 +544,7 @@ async function loadProductImages() {
           throw new Error("No image URL available");
         }
       } catch (error) {
-        console.debug(`Failed to load image for product ${product.id}:`, error);
+        logger.debug('Failed to load product image', { error, productId: product.id });
 
         // Show error fallback
         const errorImg = document.createElement("div");
@@ -605,7 +606,7 @@ async function handleShowHistory(product: TrackedProduct) {
     updateHistoryStats(product, historyForRange);
     renderPriceChart(product, historyForRange);
   } catch (error) {
-    console.error("Failed to load price history", error);
+    logger.error('Failed to load price history', { error, productId: product.id, action: 'loadHistory' });
     // Show error or fallback
     modalTitle.textContent = `${product.title} (${t("errorLoadingHistory")})`;
   }
@@ -959,7 +960,7 @@ async function updateStatusIndicators() {
       settingsLastSync.title = "No se han realizado chequeos automáticos aún";
     }
   } catch (error) {
-    console.error("Error updating status indicators:", error);
+    logger.error('Error updating status indicators', { error, action: 'updateStatusIndicators' });
     settingsConnectionStatus.textContent = "⚪ " + t("error");
     settingsConnectionStatus.className = "status-badge";
     settingsConnectionStatus.title = t("connectionCheckError");
@@ -1025,7 +1026,7 @@ async function loadSettings() {
     const isCompact = Boolean(collapsePreference[BUTTON_COLLAPSE_KEY]);
     floatingButtonBehavior.value = isCompact ? "compact" : "expanded";
   } catch (error) {
-    console.error("Error loading settings:", error);
+    logger.error('Error loading settings', { error, action: 'loadSettings' });
   }
 }
 
@@ -1074,7 +1075,7 @@ async function saveSettings() {
     // Reload status indicators
     await updateStatusIndicators();
   } catch (error) {
-    console.error("Error saving settings:", error);
+    logger.error('Error saving settings', { error, action: 'saveSettings' });
     saveSettingsBtn.textContent = "❌ " + t("error");
     setTimeout(() => {
       saveSettingsBtn.textContent = t("saveSettings");
@@ -1102,7 +1103,7 @@ async function testNotification() {
       testNotificationBtn.disabled = false;
     }, 2000);
   } catch (error) {
-    console.error("Error testing notification:", error);
+    logger.error('Error testing notification', { error, action: 'testNotification' });
     testNotificationBtn.textContent = "❌ " + t("error");
     setTimeout(() => {
       testNotificationBtn.textContent = t("testNotificationButton");
@@ -1142,7 +1143,7 @@ async function testFirebaseConnection() {
     // Update header status
     await updateStatusIndicators();
   } catch (error) {
-    console.error("Error testing Firebase:", error);
+    logger.error('Error testing Firebase connection', { error, action: 'testFirebase' });
     firebaseStatusDetail.textContent = `❌ ${t("error")}: ${
       error instanceof Error ? error.message : "Unknown error"
     }`;
@@ -1169,7 +1170,7 @@ async function clearRateLimits() {
       clearRateLimitsBtn.disabled = false;
     }, 2000);
   } catch (error) {
-    console.error("Error clearing rate limits:", error);
+    logger.error('Error clearing rate limits', { error, action: 'clearRateLimits' });
     clearRateLimitsBtn.textContent = "❌ " + t("error");
     setTimeout(() => {
       clearRateLimitsBtn.textContent = t("retryBlockedProducts");

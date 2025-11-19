@@ -22,6 +22,46 @@ const envReplacements = {
   __FIREBASE_APP_ID__: JSON.stringify(process.env.FIREBASE_APP_ID ?? ''),
 };
 
+// Path alias plugin for esbuild to resolve TypeScript paths  
+const pathAliasPlugin = {
+  name: 'path-aliases',
+  setup(build) {
+    const srcPath = join(process.cwd(), 'src');
+    
+    const resolveWithExtension = (basePath) => {
+      // Try with .ts extension
+      if (existsSync(basePath + '.ts')) {
+        return basePath + '.ts';
+      }
+      // Try as directory with index.ts
+      if (existsSync(join(basePath, 'index.ts'))) {
+        return join(basePath, 'index.ts');
+      }
+      // Return as-is if file exists
+      if (existsSync(basePath)) {
+        return basePath;
+      }  
+      return basePath + '.ts'; // Default fallback
+    };
+    
+    build.onResolve({ filter: /^@core\// }, args => ({
+      path: resolveWithExtension(join(srcPath, 'core', args.path.slice(6)))
+    }));
+    
+    build.onResolve({ filter: /^@adapters\// }, args => ({
+      path: resolveWithExtension(join(srcPath, 'adapters', args.path.slice(10)))
+    }));
+    
+    build.onResolve({ filter: /^@utils\// }, args => ({
+      path: resolveWithExtension(join(srcPath, 'utils', args.path.slice(7)))
+    }));
+    
+    build.onResolve({ filter: /^@backend\// }, args => ({
+      path: resolveWithExtension(join(srcPath, 'backend', args.path.slice(9)))
+    }));
+  }
+};
+
 const buildOptions = {
   entryPoints: [
     'src/service-worker.ts',
@@ -37,6 +77,7 @@ const buildOptions = {
   sourcemap: !isProduction,
   logLevel: 'info',
   define: envReplacements,
+  plugins: [pathAliasPlugin],
 };
 
 // Copy static files
