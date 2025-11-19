@@ -15,7 +15,7 @@ export class PcComponentesAdapter implements PriceAdapter {
   name = 'pccomponentes';
   affiliateNetworkId = 'pccomponentes';
   enabled = true;
-  urlPatterns = [/pccomponentes\.com\//i];
+  urlPatterns = [/pccomponentes\.com/i];
 
   canHandle(url: string): boolean {
     return this.urlPatterns.some(pattern => pattern.test(url));

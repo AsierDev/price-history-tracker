@@ -211,18 +211,23 @@ export function getProductPageExplanation(url: string): string {
 /**
  * Enhanced detection for specific sites
  */
-export function isProductPageForSite(url: string, site: string): boolean {
+export function isProductPageForSite(url: string, siteName: string): boolean {
   const lowerUrl = url.toLowerCase();
+  
+  // Normalize site name
+  if (siteName.includes('pccomponentes')) {
+     siteName = 'pccomponentes';
+  }
 
-  switch (site) {
-    case "amazon":
-      // Amazon specific logic
+  if (siteName.includes('amazon')) {     // Amazon specific logic
       return (
         lowerUrl.includes("/dp/") ||
         lowerUrl.includes("/gp/product/") ||
         lowerUrl.includes("/product/")
       );
+  }
 
+  switch (siteName) {
     case "ebay":
       // eBay specific logic
       return lowerUrl.includes("/itm/");
@@ -230,6 +235,36 @@ export function isProductPageForSite(url: string, site: string): boolean {
     case "aliexpress":
       // AliExpress specific logic
       return lowerUrl.includes("/item/");
+
+    case "pccomponentes": {
+      // PC Componentes: Product pages are direct paths like /tablet-xxx or /portatil-xxx
+      // Exclude non-product pages
+      const isExcluded = (
+        lowerUrl.includes("/buscar/") ||
+        lowerUrl.includes("/categoria/") ||
+        lowerUrl.includes("/ofertas/") ||
+        lowerUrl.includes("/marcas/") ||
+        lowerUrl.includes("/carrito") ||
+        lowerUrl.includes("/checkout") ||
+        lowerUrl.includes("/mi-cuenta")
+      );
+      const hasSlug = /\/[a-z0-9-]+$/.test(new URL(lowerUrl).pathname);
+      
+      if (lowerUrl.includes('pccomponentes')) {
+        logger.debug('PC Componentes detection', { url: lowerUrl, isExcluded, hasSlug });
+      }
+
+      return !isExcluded && hasSlug;
+    }
+
+    case "elcorteingles":
+    case "el corte inglés":
+      // El Corte Inglés: Product pages have format /categoria/AXXXXXXX-description
+      return /\/[A-Z]\d+/.test(url);
+
+    case "mediamarkt":
+      // MediaMarkt: Product pages contain /es/product/
+      return lowerUrl.includes("/es/product/");
 
     default:
       // Use general detection

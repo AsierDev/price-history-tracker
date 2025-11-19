@@ -25,33 +25,70 @@ export class ElCorteInglesAdapter implements PriceAdapter {
     try {
       const doc = createDocument(html);
 
-      const jsonLdResult = this.extractFromJsonLd(doc);
-      if (jsonLdResult) {
-        return jsonLdResult;
+      // PRIORITY 1: DataLayer (Most reliable for El Corte Inglés)
+      const dataLayerResult = this.extractFromDataLayer(doc);
+      if (dataLayerResult) {
+        return dataLayerResult;
       }
 
-      const title = this.extractTitle(doc);
-      const priceInfo = this.extractPrice(doc);
-      const imageUrl = this.extractHeroImage(doc);
-      const available = this.checkAvailability(doc);
+      // PRIORITY 2: JSON-LD (Fixed logic to prefer SalePrice)
+      const jsonLdResult = this.extractFromJsonLd(doc);
+      
+      // PRIORITY 3: HTML Fallback
+      const htmlPriceInfo = this.extractPrice(doc);
+      
+      // Base data from JSON-LD if available, otherwise HTML
+      const result: ExtractedProductData = jsonLdResult || {
+        title: this.extractTitle(doc),
+        price: 0,
+        currency: 'EUR',
+        imageUrl: this.extractHeroImage(doc),
+        available: this.checkAvailability(doc),
+      };
 
-      if (!priceInfo) {
+      // If we have an HTML price, compare it with JSON-LD price
+      if (htmlPriceInfo && htmlPriceInfo.price > 0) {
+        // Sanity check: If HTML price is suspiciously low compared to JSON-LD price (e.g. < 20%),
+        // it's likely a shipping cost, accessory, or installment price (e.g. 7.90€ vs 1999€).
+        // Unless JSON-LD price is 0, in which case we have no baseline.
+        const isSuspiciouslyLow = result.price > 0 && (htmlPriceInfo.price / result.price < 0.2);
+        
+        if (isSuspiciouslyLow) {
+          logger.warn('Ignoring suspiciously low HTML price', { 
+            htmlPrice: htmlPriceInfo.price, 
+            jsonLdPrice: result.price,
+            url: this.urlPatterns[0] // context
+          });
+        } else {
+          // If JSON-LD failed or HTML price is lower (and valid), use HTML price
+          // This handles cases where JSON-LD has original price (1999) but HTML has sale price (999)
+          if (result.price === 0 || htmlPriceInfo.price < result.price) {
+            result.price = htmlPriceInfo.price;
+            result.currency = htmlPriceInfo.currency;
+          }
+        }
+        
+        // If JSON-LD missed other fields, fill them from HTML
+        if (!result.title || result.title === 'Producto El Corte Inglés') {
+          result.title = this.extractTitle(doc);
+        }
+        if (!result.imageUrl) {
+          result.imageUrl = this.extractHeroImage(doc);
+        }
+        // HTML availability check is often more up-to-date
+        if (!result.available) {
+           result.available = this.checkAvailability(doc);
+        }
+      }
+
+      if (result.price === 0) {
         return {
-          title,
-          price: 0,
-          currency: 'EUR',
-          available: false,
+          ...result,
           error: 'Price not found',
         };
       }
 
-      return {
-        title,
-        price: priceInfo.price,
-        currency: priceInfo.currency,
-        imageUrl,
-        available,
-      };
+      return result;
     } catch (error) {
       logger.error('El Corte Inglés extraction failed', error);
       return {
@@ -66,6 +103,62 @@ export class ElCorteInglesAdapter implements PriceAdapter {
 
   generateAffiliateUrl(url: string): string {
     return url;
+  }
+
+  private extractFromDataLayer(doc: Document): ExtractedProductData | null {
+    try {
+      const scripts = doc.querySelectorAll('script');
+      for (const script of Array.from(scripts)) {
+        const content = script.textContent || '';
+        if (content.includes('dataLayer =')) {
+          // Extract the array content
+          const match = content.match(/dataLayer\s*=\s*(\[.*?\]);/s);
+          if (match && match[1]) {
+            // Safe parsing of the JS object
+            // We can't use JSON.parse directly because it might not be valid JSON (keys without quotes)
+            // But usually dataLayer is valid JSON or close to it.
+            // In the user example it IS valid JSON.
+            try {
+              const data = JSON.parse(match[1]);
+              if (Array.isArray(data)) {
+                for (const item of data) {
+                  if (item.product && item.product.price) {
+                    const p = item.product;
+                    const priceObj = p.price;
+                    // f_price seems to be final price, o_price original
+                    const price = priceObj.f_price || priceObj.price || 0;
+                    
+                    if (price > 0) {
+                      return {
+                        title: p.name || 'Producto El Corte Inglés',
+                        price: Number(price),
+                        currency: priceObj.currency || 'EUR',
+                        imageUrl: p.image || undefined, // dataLayer might not have image
+                        available: true // Assume available if in dataLayer product view
+                      };
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              // JSON parse failed, try regex extraction as fallback
+              const priceMatch = content.match(/"f_price":\s*(\d+(\.\d+)?)/);
+              if (priceMatch && priceMatch[1]) {
+                 return {
+                    title: 'Producto El Corte Inglés', // Will be filled by other extractors
+                    price: Number(priceMatch[1]),
+                    currency: 'EUR',
+                    available: true
+                 };
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn('DataLayer extraction failed', { error: e });
+    }
+    return null;
   }
 
   private extractFromJsonLd(doc: Document): ExtractedProductData | null {
@@ -270,6 +363,47 @@ export class ElCorteInglesAdapter implements PriceAdapter {
   private extractPriceText(element: Element | null): string | null {
     if (!element) return null;
 
+    // PRIORITY 1: For El Corte Inglés price-sale elements, be smart about ignoring the original price.
+    // Instead of just looking at direct text (which fails if the sale price is in a span),
+    // we clone the node, remove the "original" price elements, and take what's left.
+    if (element.classList?.contains('price-sale') || element.getAttribute('aria-label') === 'Precio de venta') {
+      try {
+        // Create a dummy wrapper to clone the element (linkedom/DOM compatible)
+        const clone = element.cloneNode(true) as Element;
+        
+        // Remove known "original price" elements from the clone
+        const originalPriceSelectors = [
+          '.price-unit--original',
+          '.price-original',
+          '.strike',
+          '.strikethrough',
+          'del',
+          '[data-price-original]'
+        ];
+
+        originalPriceSelectors.forEach(selector => {
+          const badElements = clone.querySelectorAll(selector);
+          badElements.forEach(el => el.remove());
+        });
+
+        const cleanText = clone.textContent?.trim() || '';
+        if (cleanText.length > 0) {
+          return cleanText;
+        }
+      } catch (e) {
+        // If cloning fails (unlikely), fall back to direct text
+        let directText = '';
+        for (const node of Array.from(element.childNodes)) {
+          if (node.nodeType === 3) { // Node.TEXT_NODE
+            directText += node.textContent || '';
+          }
+        }
+        const trimmed = directText.trim();
+        if (trimmed.length > 0) return trimmed;
+      }
+    }
+
+    // PRIORITY 2: Check attributes as fallback
     const attrs = ['content', 'data-price', 'data-price-value', 'data-price-final', 'data-value'];
     for (const attr of attrs) {
       const val = element.getAttribute?.(attr);
@@ -278,6 +412,7 @@ export class ElCorteInglesAdapter implements PriceAdapter {
       }
     }
 
+    // PRIORITY 3: Generic text content
     const text = element.textContent?.trim() || '';
     return text.length > 0 ? text : null;
   }
