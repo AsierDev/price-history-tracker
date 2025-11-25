@@ -6,7 +6,6 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import type { PriceDataPoint, ProductDocument } from '../core/types';
 import { getFirebaseDb, isFirebaseConfigured } from './config';
-import { getAnonymousUserId } from './auth';
 import { cleanUrl, hashUrl } from '../utils/urlUtils';
 import { logger } from '../utils/logger';
 
@@ -34,9 +33,6 @@ export async function addPriceToBackend(data: {
         error: 'Backend not configured',
       };
     }
-
-    // Ensure user is authenticated
-    await getAnonymousUserId();
 
     const cleanedUrl = cleanUrl(data.url);
     const docId = hashUrl(cleanedUrl);
@@ -134,8 +130,6 @@ export async function updatePriceInBackend(data: {
     if (!isFirebaseConfigured()) {
       return { success: false, priceHistory: [] };
     }
-
-    await getAnonymousUserId();
 
     const cleanedUrl = cleanUrl(data.url);
     const docId = hashUrl(cleanedUrl);
@@ -257,8 +251,10 @@ export async function checkBackendConnectivity(): Promise<boolean> {
       return false;
     }
 
-    // Try to authenticate
-    await getAnonymousUserId();
+    // Try to read a lightweight document to validate connectivity
+    const db = getFirebaseDb();
+    const productRef = doc(db, COLLECTION_NAME, '__connectivity_test__');
+    await getDoc(productRef);
     return true;
   } catch {
     return false;

@@ -3,10 +3,8 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import type { FirebaseApp } from 'firebase/app';
-import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { logger } from '../utils/logger';
 import { ENV } from '../config/env';
@@ -22,13 +20,12 @@ const firebaseConfig = {
 };
 
 let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
 let db: Firestore | null = null;
 
 /**
  * Initialize Firebase (lazy initialization)
  */
-export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firestore } {
+export function initializeFirebase(): { app: FirebaseApp; db: Firestore } {
   if (!app) {
     try {
       // Validate config
@@ -37,7 +34,6 @@ export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firest
       }
 
       app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
       db = getFirestore(app);
 
       logger.info('Firebase initialized successfully', {
@@ -49,18 +45,7 @@ export function initializeFirebase(): { app: FirebaseApp; auth: Auth; db: Firest
     }
   }
 
-  return { app, auth: auth!, db: db! };
-}
-
-/**
- * Get Firebase Auth instance
- */
-export function getFirebaseAuth(): Auth {
-  if (!auth) {
-    const firebase = initializeFirebase();
-    return firebase.auth;
-  }
-  return auth;
+  return { app, db: db! };
 }
 
 /**

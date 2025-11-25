@@ -385,7 +385,7 @@ export class StorageManager {
   }
 
   /**
-   * Get anonymous user ID (Firebase Auth)
+   * Get anonymous user ID (local)
    */
   static async getAnonymousUserId(): Promise<string | undefined> {
     try {
@@ -398,7 +398,7 @@ export class StorageManager {
   }
 
   /**
-   * Set anonymous user ID (Firebase Auth)
+   * Set anonymous user ID (local)
    */
   static async setAnonymousUserId(userId: string): Promise<void> {
     try {

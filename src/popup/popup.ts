@@ -7,7 +7,7 @@ import { StorageManager } from '../core/storage';
 import { formatTimestamp } from "../utils/dateUtils";
 import { logger } from '../utils/logger';
 import { Chart, registerables } from "chart.js";
-import { getProductHistory, getProductImageUrl } from "../backend/backend";
+import { checkBackendConnectivity, getProductHistory, getProductImageUrl } from "../backend/backend";
 import { t, translatePage } from "../utils/i18n";
 
 // Register Chart.js components
@@ -917,19 +917,18 @@ async function updateStatusIndicators() {
   settingsConnectionStatus.title = t("checkingConnection");
   settingsConnectionStatus.setAttribute("aria-label", t("checkingConnection"));
   try {
-    const [anonymousUserId, lastCheckTime] = await Promise.all([
-      StorageManager.getAnonymousUserId(),
+    const [backendConnected, lastCheckTime] = await Promise.all([
+      checkBackendConnectivity(),
       StorageManager.getLastCheckTime(),
     ]);
-    const isConnected = Boolean(anonymousUserId);
-    const statusLabel = isConnected
+    const statusLabel = backendConnected
       ? "🟢 " + t("connected")
       : "🔴 " + t("disconnected");
-    const statusClass = isConnected
+    const statusClass = backendConnected
       ? "status-badge connected"
       : "status-badge disconnected";
-    const statusTitle = isConnected
-      ? `Firebase UID: ${anonymousUserId!.substring(0, 8)}...`
+    const statusTitle = backendConnected
+      ? t("connectedSuccessfully")
       : t("notConnectedFirebase");
 
     settingsConnectionStatus.textContent = statusLabel;
@@ -937,15 +936,12 @@ async function updateStatusIndicators() {
     settingsConnectionStatus.title = statusTitle;
     settingsConnectionStatus.setAttribute(
       "aria-label",
-      isConnected ? "Conectado" : "Desconectado"
+      backendConnected ? "Conectado" : "Desconectado"
     );
 
-    const hintLabel = isConnected
-      ? "Estado de conexión: conectado"
-      : "Estado de conexión: desconectado";
     setConnectionHintState(
-      isConnected ? "connected" : "disconnected",
-      `${hintLabel}. ${statusTitle}`
+      backendConnected ? "connected" : "disconnected",
+      statusTitle
     );
 
     if (lastCheckTime > 0) {
@@ -1009,16 +1005,13 @@ async function loadSettings() {
     themePreference.value = currentThemePreference;
 
     // Check Firebase status
-    const anonymousUserId = await StorageManager.getAnonymousUserId();
-    if (anonymousUserId) {
-      firebaseStatusDetail.textContent = `✅ ${t(
-        "connected"
-      )} (UID: ${anonymousUserId.substring(0, 12)}...)`;
-      firebaseStatusDetail.className = "status-detail success";
-    } else {
-      firebaseStatusDetail.textContent = t("notConnectedFirebase");
-      firebaseStatusDetail.className = "status-detail error";
-    }
+    const backendConnected = await checkBackendConnectivity();
+    firebaseStatusDetail.textContent = backendConnected
+      ? t("connectedSuccessfully")
+      : t("notConfiguredFirebase");
+    firebaseStatusDetail.className = backendConnected
+      ? "status-detail success"
+      : "status-detail error";
 
     const collapsePreference = await chrome.storage.local.get(
       BUTTON_COLLAPSE_KEY
@@ -1124,19 +1117,17 @@ async function testFirebaseConnection() {
     firebaseStatusDetail.className = "status-detail";
 
     // Try to get anonymous user ID (this will authenticate if needed)
-    const anonymousUserId = await StorageManager.getAnonymousUserId();
+    const backendConnected = await checkBackendConnectivity();
 
-    if (anonymousUserId) {
-      firebaseStatusDetail.textContent = `${t(
-        "connectedSuccessfully"
-      )} (UID: ${anonymousUserId.substring(0, 12)}...)`;
-      firebaseStatusDetail.className = "status-detail success";
-      testFirebaseBtn.textContent = "✅ " + t("connected");
-    } else {
-      firebaseStatusDetail.textContent = t("notConfiguredFirebase");
-      firebaseStatusDetail.className = "status-detail error";
-      testFirebaseBtn.textContent = "❌ " + t("error");
-    }
+    firebaseStatusDetail.textContent = backendConnected
+      ? t("connectedSuccessfully")
+      : t("notConfiguredFirebase");
+    firebaseStatusDetail.className = backendConnected
+      ? "status-detail success"
+      : "status-detail error";
+    testFirebaseBtn.textContent = backendConnected
+      ? "✅ " + t("connected")
+      : "❌ " + t("error");
 
     setTimeout(() => {
       testFirebaseBtn.textContent = t("testFirebaseConnection");

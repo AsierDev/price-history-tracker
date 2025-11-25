@@ -1,6 +1,6 @@
 {
   "name": "price-history-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Chrome extension to track price history on Amazon, eBay, and AliExpress",
   "type": "module",
   "scripts": {

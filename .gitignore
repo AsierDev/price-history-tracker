@@ -5,6 +5,7 @@ audit/
 
 # Build output
 dist/
+zips/
 
 # Environment variables
 .env
