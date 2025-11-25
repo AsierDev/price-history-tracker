@@ -3,13 +3,13 @@
  * Supports: amazon.com, amazon.es, amazon.co.uk, etc.
  */
 
-import { BaseAdapter } from '../base/BaseAdapter';
-import { addQueryParam } from '../../utils/urlUtils';
-import { ENV } from '../../config/env';
+import { BaseAdapter } from "../base/BaseAdapter";
+import { addQueryParam } from "../../utils/urlUtils";
+import { ENV } from "../../config/env";
 
 export class AmazonAdapter extends BaseAdapter {
-  name = 'amazon';
-  affiliateNetworkId = 'amazon-associates';
+  name = "amazon";
+  affiliateNetworkId = "amazon-associates";
   enabled = true;
   urlPatterns = [
     /amazon\.[a-z.]+\/.*\/dp\//i,
@@ -18,26 +18,33 @@ export class AmazonAdapter extends BaseAdapter {
   ];
 
   generateAffiliateUrl(url: string): string {
-    const affiliateTag = ENV.AFFILIATE_AMAZON_TAG || 'pricewatch-21';
-    return addQueryParam(url, 'tag', affiliateTag);
+    const affiliateTag = ENV.AFFILIATE_AMAZON_TAG;
+
+    if (!affiliateTag || affiliateTag.trim() === "") {
+      return url;
+    }
+
+    return addQueryParam(url, "tag", affiliateTag);
   }
 
   protected extractTitle(doc: Document): string | null {
     const selectors = [
-      '#productTitle',
-      '#title',
-      'h1.product-title',
-      'h1 span#productTitle',
+      "#productTitle",
+      "#title",
+      "h1.product-title",
+      "h1 span#productTitle",
     ];
     return this.extractTextBySelectors(doc, selectors);
   }
 
-  protected extractPrice(doc: Document): { price: number; currency: string } | null {
+  protected extractPrice(
+    doc: Document
+  ): { price: number; currency: string } | null {
     const selectors = [
-      '.a-price-whole',
-      '.a-price .a-offscreen',
-      '#priceblock_ourprice',
-      '#priceblock_dealprice',
+      ".a-price-whole",
+      ".a-price .a-offscreen",
+      "#priceblock_ourprice",
+      "#priceblock_dealprice",
       '.a-price[data-a-color="price"] .a-offscreen',
     ];
 
@@ -53,10 +60,10 @@ export class AmazonAdapter extends BaseAdapter {
 
   protected extractImage(doc: Document): string | undefined {
     const selectors = [
-      '#landingImage',
-      '#imgBlkFront',
-      '#main-image',
-      '.a-dynamic-image',
+      "#landingImage",
+      "#imgBlkFront",
+      "#main-image",
+      ".a-dynamic-image",
     ];
 
     for (const selector of selectors) {
@@ -69,8 +76,8 @@ export class AmazonAdapter extends BaseAdapter {
   }
 
   protected checkAvailability(doc: Document): boolean {
-    const availabilityElement = doc.querySelector('#availability');
+    const availabilityElement = doc.querySelector("#availability");
     if (!availabilityElement) return true;
-    return !this.isOutOfStock(availabilityElement.textContent || '');
+    return !this.isOutOfStock(availabilityElement.textContent || "");
   }
 }

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "default_locale": "en",
   "name": "__MSG_extensionName__",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "__MSG_extensionDescription__",
   "icons": {
     "16": "icons/icon-16.png",
@@ -18,6 +18,7 @@
   "host_permissions": [
     "https://*.amazon.com/*",
     "https://*.amazon.es/*",
+    "https://*.amazon.co.uk/*",
     "https://*.ebay.com/*",
     "https://*.ebay.es/*",
     "https://*.aliexpress.com/*",
@@ -48,8 +49,28 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*/*",
-        "http://*/*"
+        "https://*.amazon.com/*",
+        "https://*.amazon.es/*",
+        "https://*.amazon.co.uk/*",
+        "https://*.ebay.com/*",
+        "https://*.ebay.es/*",
+        "https://*.aliexpress.com/*",
+        "https://*.aliexpress.es/*",
+        "https://*.pccomponentes.com/*",
+        "https://*.elcorteingles.es/*",
+        "https://*.mediamarkt.es/*",
+        "https://*.etsy.com/*",
+        "https://*.shopify.com/*",
+        "https://*.walmart.com/*",
+        "https://*.target.com/*",
+        "https://*.bestbuy.com/*",
+        "https://*.carrefour.es/*",
+        "https://*.mercadolibre.com/*",
+        "https://*.zalando.es/*",
+        "https://*.fnac.es/*",
+        "https://*.lidl.es/*",
+        "https://*.mercadona.es/*",
+        "https://*.decathlon.es/*"
       ],
       "js": [
         "content-script.js"
@@ -67,5 +88,7 @@
       "128": "popup/icons/icon-128.png"
     },
     "default_title": "Price History Tracker"
-  }
+  },
+  "homepage_url": "https://github.com/AsierDev/price-history-tracker",
+  "privacy_policy": "https://asierdev.github.io/price-history-tracker/privacy.html"
 }

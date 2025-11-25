@@ -150,6 +150,12 @@ FIREBASE_APP_ID=
 
 esbuild injects these values via `define`, so the runtime never touches `process.env`.
 
+## Affiliate Disclosure
+
+This extension may include affiliate links from Amazon Associates and other networks.
+If you make a purchase through these links, the developer receives a small commission
+at no extra cost to you. This helps maintain the project as free and open-source.
+
 ---
 
 ## 🤝 Contributing
