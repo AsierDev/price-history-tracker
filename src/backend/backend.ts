@@ -245,18 +245,19 @@ export async function getProductImageUrl(url: string): Promise<string | undefine
 /**
  * Check backend connectivity
  */
-export async function checkBackendConnectivity(): Promise<boolean> {
+export async function checkBackendConnectivity(): Promise<{ success: boolean; error?: string }> {
   try {
     if (!isFirebaseConfigured()) {
-      return false;
+      return { success: false, error: 'Firebase configuration missing' };
     }
 
     // Try to read a lightweight document to validate connectivity
     const db = getFirebaseDb();
-    const productRef = doc(db, COLLECTION_NAME, '__connectivity_test__');
+    const productRef = doc(db, COLLECTION_NAME, 'connectivity_test');
     await getDoc(productRef);
-    return true;
-  } catch {
-    return false;
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown connectivity error';
+    return { success: false, error: errorMessage };
   }
 }

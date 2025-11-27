@@ -917,19 +917,26 @@ async function updateStatusIndicators() {
   settingsConnectionStatus.title = t("checkingConnection");
   settingsConnectionStatus.setAttribute("aria-label", t("checkingConnection"));
   try {
-    const [backendConnected, lastCheckTime] = await Promise.all([
+    const [connectivityResult, lastCheckTime] = await Promise.all([
       checkBackendConnectivity(),
       StorageManager.getLastCheckTime(),
     ]);
+    const backendConnected = connectivityResult.success;
     const statusLabel = backendConnected
       ? "🟢 " + t("connected")
       : "🔴 " + t("disconnected");
     const statusClass = backendConnected
       ? "status-badge connected"
       : "status-badge disconnected";
-    const statusTitle = backendConnected
+    
+    let statusTitle = backendConnected
       ? t("connectedSuccessfully")
       : t("notConnectedFirebase");
+
+    // Add specific error if available
+    if (!backendConnected && connectivityResult.error) {
+      statusTitle += ` (${connectivityResult.error})`;
+    }
 
     settingsConnectionStatus.textContent = statusLabel;
     settingsConnectionStatus.className = statusClass;
@@ -1005,10 +1012,19 @@ async function loadSettings() {
     themePreference.value = currentThemePreference;
 
     // Check Firebase status
-    const backendConnected = await checkBackendConnectivity();
-    firebaseStatusDetail.textContent = backendConnected
+    const connectivityResult = await checkBackendConnectivity();
+    const backendConnected = connectivityResult.success;
+    
+    let statusText = backendConnected
       ? t("connectedSuccessfully")
       : t("notConfiguredFirebase");
+      
+    // Show specific error if available and not just missing config
+    if (!backendConnected && connectivityResult.error && connectivityResult.error !== 'Firebase configuration missing') {
+      statusText = `❌ ${connectivityResult.error}`;
+    }
+
+    firebaseStatusDetail.textContent = statusText;
     firebaseStatusDetail.className = backendConnected
       ? "status-detail success"
       : "status-detail error";
@@ -1117,11 +1133,18 @@ async function testFirebaseConnection() {
     firebaseStatusDetail.className = "status-detail";
 
     // Try to get anonymous user ID (this will authenticate if needed)
-    const backendConnected = await checkBackendConnectivity();
+    const connectivityResult = await checkBackendConnectivity();
+    const backendConnected = connectivityResult.success;
 
-    firebaseStatusDetail.textContent = backendConnected
+    let statusText = backendConnected
       ? t("connectedSuccessfully")
       : t("notConfiguredFirebase");
+
+    if (!backendConnected && connectivityResult.error && connectivityResult.error !== 'Firebase configuration missing') {
+      statusText = `❌ ${connectivityResult.error}`;
+    }
+
+    firebaseStatusDetail.textContent = statusText;
     firebaseStatusDetail.className = backendConnected
       ? "status-detail success"
       : "status-detail error";
