@@ -1,9 +1,12 @@
 # 💰 Price History Tracker
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-Available-chrome?logo=google-chrome&color=4285F4)](https://chromewebstore.google.com/detail/iepjfpifhlniabnjnokfoihcncbkgmcl?utm_source=item-share-cb)
+[![CI](https://github.com/AsierDev/price-history-tracker/workflows/CI/badge.svg)](https://github.com/AsierDev/price-history-tracker/actions/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Chrome extension that tracks price history across Amazon, eBay, AliExpress, MediaMarkt, PC Componentes, El Corte Inglés, and hundreds of additional stores using a tiered adapter system plus a universal manual price picker.
 
-[![CI](https://github.com/your-username/price-history-tracker/workflows/CI/badge.svg)](https://github.com/AsierDev/price-history-tracker/actions/)  
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> **[Download from Chrome Web Store](https://chromewebstore.google.com/detail/iepjfpifhlniabnjnokfoihcncbkgmcl?utm_source=item-share-cb)**
 
 ---
 
